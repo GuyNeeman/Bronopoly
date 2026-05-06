@@ -1,56 +1,75 @@
 import { useState } from 'react'
 import './App.css'
-import {Slider} from "@mui/material";
+import StartScreen from './components/StartScreen'
+import PlayerScreen from './components/PlayerScreen.jsx'
+import SettingsScreen from './components/SettingsScreen'
+import OnlineScreen from "./components/OnlineScreen.jsx";
+import PlayerCreationScreen from "./components/PlayerCreationScreen.jsx";
 
 function App() {
-    const [playercount, setPlayerCount] = useState("123");
-    const [welcome, setWelcome] = useState(false);
-    const [online, setOnline] = useState(false);
+    const [screen, setScreen] = useState("start");
 
-    function createGame() {
-        console.log("hi")
+    const [playerCount, setPlayerCount] = useState(2);
+
+    const [players, setPlayers] = useState([
+    ]);
+
+    const [settings, setSettings] = useState({
+        startMoney: 2000,
+        roundMoney: 200,
+        vacationCash: true,
+        auction: true,
+        noRentInPrison: true,
+        evenBuild: true,
+    });
+
+    function startGame() {
+        console.log("Start game:", { playerCount, settings });
     }
-    function createPlayer(playercount) {
-        console.log("hi")
-        }
 
-  return (
-    <>
-        {!welcome && (
-            <>
-                <p>Welcome to Bronopoly</p>
-                <p>Will you play online(currently unavailable) or offline </p>
-                <div>
-                    <button onClick={() => {setOnline(true);setWelcome(true);}}>
-                        Online
-                    </button>
+    return (
+        <div className="app">
+            {screen === "start" && (
+                <StartScreen setScreen={setScreen} />
+            )}
 
-                    <button onClick={() => {setOnline(false);setWelcome(true);}}>
-                        Offline
-                    </button>
-                </div>
-            </>
-        )}
-        {welcome && online && (
-            <>
-                <p>No Online Mode currently available.</p>
-            </>
-        )}
-        {welcome && !online && (
-            <>
-                <p>Great to know!</p>
-                <p>How many players will be joining you?</p>
-                <Slider
-                    size="small"
-                    defaultValue={0}
-                    aria-label="Small"
-                    valueLabelDisplay="auto"
-                    max={5}
+            {screen === "players" && (
+                <PlayerScreen
+                    playerCount={playerCount}
+                    setPlayerCount={setPlayerCount}
+                    next={() => setScreen("settings")}
+                    back={() => setScreen("start")}
                 />
-            </>
-        )}
-    </>
-  )
+            )}
+
+            {screen === "settings" && (
+                <SettingsScreen
+                    settings={settings}
+                    setSettings={setSettings}
+                    startGame={startGame}
+                    next={() => setScreen("create-players")}
+                    back={() => setScreen("players")}
+                />
+            )}
+
+            {screen === "online" && (
+                <OnlineScreen
+                    back={() => setScreen("start")}
+                />
+            )}
+
+            {screen === "create-players" && (
+                <PlayerCreationScreen
+                    playerCount={playerCount}
+                    players={players}
+                    setPlayers={setPlayers}
+                    next={() => setScreen("settings")}
+                    back={() => setScreen("players")}
+                    startMoney={settings.startMoney}
+                />
+            )}
+        </div>
+    );
 }
 
-export default App
+export default App;
