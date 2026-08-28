@@ -5,6 +5,7 @@ import PlayerScreen from './components/PlayerScreen.jsx'
 import SettingsScreen from './screens/SettingsScreen.jsx'
 import JoinScreen from "./screens/JoinScreen.jsx";
 import PlayerCreationScreen from "./components/PlayerCreationScreen.jsx";
+import StatsticScreen from "./screens/StatisticScreen.jsx";
 
 function App() {
     const [screen, setScreen] = useState("start");
