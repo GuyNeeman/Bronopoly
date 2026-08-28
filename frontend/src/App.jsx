@@ -1,9 +1,9 @@
 import { useState } from 'react'
 import './App.css'
-import StartScreen from './components/StartScreen'
+import StartScreen from './screens/StartScreen.jsx'
 import PlayerScreen from './components/PlayerScreen.jsx'
-import SettingsScreen from './components/SettingsScreen'
-import OnlineScreen from "./components/OnlineScreen.jsx";
+import SettingsScreen from './screens/SettingsScreen.jsx'
+import JoinScreen from "./screens/JoinScreen.jsx";
 import PlayerCreationScreen from "./components/PlayerCreationScreen.jsx";
 
 function App() {
@@ -52,8 +52,8 @@ function App() {
                 />
             )}
 
-            {screen === "online" && (
-                <OnlineScreen
+            {screen === "join" && (
+                <JoinScreen
                     back={() => setScreen("start")}
                 />
             )}
@@ -66,6 +66,12 @@ function App() {
                     next={() => setScreen("settings")}
                     back={() => setScreen("players")}
                     startMoney={settings.startMoney}
+                />
+            )}
+
+            {screen === "statistic" && (
+                <StatsticScreen
+                    back={() => setScreen("start")}
                 />
             )}
         </div>

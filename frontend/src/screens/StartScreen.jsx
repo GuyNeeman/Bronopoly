@@ -8,14 +8,12 @@ export default function StartScreen({ setScreen }) {
                 The last player with money wins.
             </p>
 
-            <p>How do you want to play?</p>
-
             <button onClick={() => setScreen("players")}>
-                Local game
+                Create
             </button>
 
-            <button onClick={() => setScreen("online")}>
-                Online (coming soon)
+            <button onClick={() => setScreen("join")}>
+                Join
             </button>
         </>
     );
