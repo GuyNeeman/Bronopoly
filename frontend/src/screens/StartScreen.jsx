@@ -16,8 +16,12 @@ export default function StartScreen({ setScreen }) {
                 Join
             </button>
 
-            <button onClick={() => setScreen("Statstic")}>
+            <button onClick={() => setScreen("statistic")}>
                 Statistic
+            </button>
+
+            <button onClick={() => setScreen("settings")}>
+                Settings
             </button>
         </>
     );

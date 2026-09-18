@@ -1,19 +1,20 @@
 import { useState } from 'react'
+import { Routes, Route, useNavigate } from 'react-router-dom'
 import './App.css'
 import StartScreen from './screens/StartScreen.jsx'
 import PlayerScreen from './components/PlayerScreen.jsx'
 import SettingsScreen from './screens/SettingsScreen.jsx'
 import JoinScreen from "./screens/JoinScreen.jsx";
-import PlayerCreationScreen from "./components/PlayerCreationScreen.jsx";
+import PlayerCreationScreen from "./screens/PlayerCreationScreen.jsx";
 import StatsticScreen from "./screens/StatisticScreen.jsx";
+import AccountSettings from './screens/AccountSettings.jsx';
 
 function App() {
-    const [screen, setScreen] = useState("start");
+    const navigate = useNavigate();
 
     const [playerCount, setPlayerCount] = useState(2);
 
-    const [players, setPlayers] = useState([
-    ]);
+    const [players, setPlayers] = useState();
 
     const [settings, setSettings] = useState({
         startMoney: 2000,
@@ -30,51 +31,15 @@ function App() {
 
     return (
         <div className="app">
-            {screen === "start" && (
-                <StartScreen setScreen={setScreen} />
-            )}
-
-            {screen === "players" && (
-                <PlayerScreen
-                    playerCount={playerCount}
-                    setPlayerCount={setPlayerCount}
-                    next={() => setScreen("settings")}
-                    back={() => setScreen("start")}
-                />
-            )}
-
-            {screen === "settings" && (
-                <SettingsScreen
-                    settings={settings}
-                    setSettings={setSettings}
-                    startGame={startGame}
-                    next={() => setScreen("create-players")}
-                    back={() => setScreen("players")}
-                />
-            )}
-
-            {screen === "join" && (
-                <JoinScreen
-                    back={() => setScreen("start")}
-                />
-            )}
-
-            {screen === "create-players" && (
-                <PlayerCreationScreen
-                    playerCount={playerCount}
-                    players={players}
-                    setPlayers={setPlayers}
-                    next={() => setScreen("settings")}
-                    back={() => setScreen("players")}
-                    startMoney={settings.startMoney}
-                />
-            )}
-
-            {screen === "statistic" && (
-                <StatsticScreen
-                    back={() => setScreen("start")}
-                />
-            )}
+            <Routes>
+                <Route path="/" element={<StartScreen setScreen={(screen) => navigate("/" + screen)} />} />
+                <Route path="/players" element={<PlayerScreen playerCount={playerCount} setPlayerCount={setPlayerCount} next={() => navigate("/gamesettings")} back={() => navigate("/")} />} />
+                <Route path="/settings" element={<AccountSettings settings={settings} setSettings={setSettings} back={() => navigate("/")} />} />
+                <Route path="/join" element={<JoinScreen back={() => navigate("/")} />} />
+                <Route path="/player-settings" element={<PlayerCreationScreen playerCount={playerCount} players={players} setPlayers={setPlayers} next={() => navigate("/game/67")} back={() => navigate("/players")} startMoney={settings.startMoney}/>} />
+                <Route path="/statistic" element={<StatsticScreen back={() => navigate("/")} />} />
+                <Route path="/gamesettings" element={<SettingsScreen settings={settings} setSettings={setSettings} startGame={startGame} next={() => navigate("/player-settings")} back={() => navigate("/players")}/>}/>
+            </Routes>
         </div>
     );
 }
