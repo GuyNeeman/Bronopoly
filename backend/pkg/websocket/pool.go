@@ -7,6 +7,19 @@ type Pool struct {
 	Unregister chan *Client
 	Clients    map[*Client]bool
 	Broadcast  chan Message
+	GameState  GameState
+}
+
+type GameState struct {
+	Players     []Player `json:"players"`
+	CurrentTurn int      `json:"currentTurn"`
+}
+
+func NewGameState() GameState {
+	return GameState{
+		Players:     []Player{},
+		CurrentTurn: 0,
+	}
 }
 
 func NewPool() *Pool {
@@ -15,6 +28,7 @@ func NewPool() *Pool {
 		Unregister: make(chan *Client),
 		Clients:    make(map[*Client]bool),
 		Broadcast:  make(chan Message),
+		GameState:  NewGameState(),
 	}
 }
 

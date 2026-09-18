@@ -7,10 +7,17 @@ import (
 	"github.com/gorilla/websocket"
 )
 
+type Player struct {
+	Name     string `json:"name"`
+	Money    int    `json:"money"`
+	Position int    `json:"position"`
+}
+
 type Client struct {
-	ID   string
-	Conn *websocket.Conn
-	Pool *Pool
+	ID     string
+	Conn   *websocket.Conn
+	Pool   *Pool
+	Player Player
 }
 
 type Message struct {
