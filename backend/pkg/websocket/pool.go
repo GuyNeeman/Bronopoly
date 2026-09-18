@@ -7,11 +7,13 @@ import (
 )
 
 type Pool struct {
-	Register   chan *Client
-	Unregister chan *Client
-	Clients    map[*Client]bool
-	Broadcast  chan Message
-	GameState  GameState
+	Register     chan *Client
+	Unregister   chan *Client
+	Clients      map[*Client]bool
+	Broadcast    chan Message
+	GameState    GameState
+	GameSettings GameSettings
+	GameResults  GameResults
 }
 
 type GameState struct {
@@ -20,8 +22,13 @@ type GameState struct {
 }
 
 type GameSettings struct {
-	StartingMoney int `json:"startingMoney"`
-	BoardSize     int `json:"boardSize"`
+	StartingMoney  int  `json:"startingMoney"`
+	BoardSize      int  `json:"boardSize"`
+	RoundMoney     int  `json:"roundMoney"`
+	VacationCash   bool `json:"vacationCash"`
+	Auction        bool `json:"auction"`
+	NoRentInPrison bool `json:"noRentInPrison"`
+	EvenBuildings  bool `json:"evenBuildings"`
 }
 
 type GameResults struct {
@@ -37,11 +44,13 @@ func NewGameState() GameState {
 
 func NewPool() *Pool {
 	return &Pool{
-		Register:   make(chan *Client),
-		Unregister: make(chan *Client),
-		Clients:    make(map[*Client]bool),
-		Broadcast:  make(chan Message),
-		GameState:  NewGameState(),
+		Register:     make(chan *Client),
+		Unregister:   make(chan *Client),
+		Clients:      make(map[*Client]bool),
+		Broadcast:    make(chan Message),
+		GameState:    NewGameState(),
+		GameSettings: GameSettings{},
+		GameResults:  GameResults{},
 	}
 }
 
