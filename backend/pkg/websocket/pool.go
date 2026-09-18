@@ -1,6 +1,10 @@
 package websocket
 
-import "fmt"
+import (
+	"fmt"
+	"math/rand"
+	"time"
+)
 
 type Pool struct {
 	Register   chan *Client
@@ -13,6 +17,15 @@ type Pool struct {
 type GameState struct {
 	Players     []Player `json:"players"`
 	CurrentTurn int      `json:"currentTurn"`
+}
+
+type GameSettings struct {
+	StartingMoney int `json:"startingMoney"`
+	BoardSize     int `json:"boardSize"`
+}
+
+type GameResults struct {
+	Winner Player `json:"winner"`
 }
 
 func NewGameState() GameState {
@@ -30,6 +43,24 @@ func NewPool() *Pool {
 		Broadcast:  make(chan Message),
 		GameState:  NewGameState(),
 	}
+}
+
+func (pool *Pool) HandleRollDice(client *Client) {
+	r := rand.New(rand.NewSource(time.Now().UnixNano()))
+
+	dice1 := r.Intn(6) + 1
+	dice2 := r.Intn(6) + 1
+	totalStep := dice1 + dice2
+
+	client.Player.Position = (client.Player.Position + totalStep) % 40
+
+	updateMsg := Message{
+		Type: 1,
+		Body: fmt.Sprintf("%s rolled a %d and a %d (Total: %d). New position: %d",
+			client.Player.Name, dice1, dice2, totalStep, client.Player.Position),
+	}
+
+	pool.Broadcast <- updateMsg
 }
 
 func (pool *Pool) Start() {
