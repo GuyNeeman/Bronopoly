@@ -1,21 +1,19 @@
-import { useState } from 'react'
-import { Routes, Route, useNavigate } from 'react-router-dom'
-import './App.css'
-import StartScreen from './screens/StartScreen.jsx'
-import PlayerScreen from './components/PlayerScreen.jsx'
-import SettingsScreen from './screens/SettingsScreen.jsx'
+import { useState, useEffect } from 'react';
+import { Routes, Route, useNavigate } from 'react-router-dom';
+import './App.css';
+import StartScreen from './screens/StartScreen.jsx';
+import PlayerScreen from './components/PlayerScreen.jsx';
+import SettingsScreen from './screens/SettingsScreen.jsx';
 import JoinScreen from "./screens/JoinScreen.jsx";
 import PlayerCreationScreen from "./screens/PlayerCreationScreen.jsx";
 import StatsticScreen from "./screens/StatisticScreen.jsx";
 import AccountSettings from './screens/AccountSettings.jsx';
+import { connect, sendMsg } from "./api";
 
 function App() {
     const navigate = useNavigate();
-
     const [playerCount, setPlayerCount] = useState(2);
-
     const [players, setPlayers] = useState();
-
     const [settings, setSettings] = useState({
         startMoney: 2000,
         roundMoney: 200,
@@ -25,8 +23,14 @@ function App() {
         evenBuild: true,
     });
 
+    useEffect(() => {
+        connect(() => {
+        });
+    }, []);
+
     function startGame() {
         console.log("Start game:", { playerCount, settings });
+        sendMsg("hello");
     }
 
     return (
