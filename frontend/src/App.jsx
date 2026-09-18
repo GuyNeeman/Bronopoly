@@ -17,10 +17,11 @@ function App() {
     const [settings, setSettings] = useState({
         startMoney: 2000,
         roundMoney: 200,
+        boardSize: 40,
         vacationCash: true,
         auction: true,
         noRentInPrison: true,
-        evenBuild: true,
+        evenBuildings: true,
     });
 
     useEffect(() => {

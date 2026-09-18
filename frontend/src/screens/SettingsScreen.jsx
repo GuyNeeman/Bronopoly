@@ -98,11 +98,11 @@ export default function SettingsScreen({ settings, setSettings, next, back }) {
                 <label>
                     <input
                         type="checkbox"
-                        checked={settings.evenBuild}
+                        checked={settings.evenBuilding}
                         onChange={(e) =>
                             setSettings({
                                 ...settings,
-                                evenBuild: e.target.checked
+                                evenBuildings: e.target.checked
                             })
                         }
                     />
