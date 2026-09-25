@@ -27,8 +27,16 @@ type IncomingAction struct {
 }
 
 type Message struct {
-	Type int    `json:"type"`
-	Body string `json:"body"`
+	Type int         `json:"type"`
+	Body interface{} `json:"body"`
+}
+
+type DiceRollData struct {
+	PlayerName string `json:"playerName"`
+	Dice1      int    `json:"dice1"`
+	Dice2      int    `json:"dice2"`
+	Total      int    `json:"total"`
+	Position   int    `json:"position"`
 }
 
 func (c *Client) Read() {

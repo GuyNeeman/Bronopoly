@@ -81,10 +81,19 @@ func (pool *Pool) HandleRollDice(client *Client) {
 
 	client.Player.Position = (client.Player.Position + totalStep) % 40
 
+	// Create your structured data object
+	rollData := DiceRollData{
+		PlayerName: client.Player.Name,
+		Dice1:      dice1,
+		Dice2:      dice2,
+		Total:      totalStep,
+		Position:   client.Player.Position,
+	}
+
+	// Wrap it inside the Message Body
 	updateMsg := Message{
-		Type: 1,
-		Body: fmt.Sprintf("%s rolled a %d and a %d (Total: %d). New position: %d",
-			client.Player.Name, dice1, dice2, totalStep, client.Player.Position),
+		Type: 2, // e.g., Type 2 for game events, Type 1 for chat
+		Body: rollData,
 	}
 
 	pool.Broadcast <- updateMsg

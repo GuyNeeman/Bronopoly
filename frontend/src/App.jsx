@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { Routes, Route, useNavigate } from 'react-router-dom';
 import './App.css';
 import StartScreen from './screens/StartScreen.jsx';
-import PlayerScreen from './components/PlayerScreen.jsx';
+import PlayerScreen from './screens/PlayerScreen.jsx';
 import SettingsScreen from './screens/SettingsScreen.jsx';
 import JoinScreen from "./screens/JoinScreen.jsx";
 import PlayerCreationScreen from "./screens/PlayerCreationScreen.jsx";
@@ -14,6 +14,7 @@ function App() {
     const navigate = useNavigate();
     const [playerCount, setPlayerCount] = useState(2);
     const [players, setPlayers] = useState();
+    const [messages, setMessages] = useState([]);
     const [settings, setSettings] = useState({
         startMoney: 2000,
         roundMoney: 200,
@@ -25,7 +26,12 @@ function App() {
     });
 
     useEffect(() => {
-        connect(() => {
+        // Connect to the WebSocket when the component loads
+        connect((incomingData) => {
+            console.log("Received from server:", incomingData);
+            // Add the new message/update to our state list
+
+            setMessages((prevMessages) => [...prevMessages, incomingData]);
         });
     }, []);
 
@@ -40,7 +46,7 @@ function App() {
                 <Route path="/" element={<StartScreen setScreen={(screen) => navigate("/" + screen)} />} />
                 <Route path="/players" element={<PlayerScreen playerCount={playerCount} setPlayerCount={setPlayerCount} next={() => navigate("/gamesettings")} back={() => navigate("/")} />} />
                 <Route path="/settings" element={<AccountSettings settings={settings} setSettings={setSettings} back={() => navigate("/")} />} />
-                <Route path="/join" element={<JoinScreen back={() => navigate("/")} />} />
+                <Route path="/join" element={<JoinScreen back={() => navigate("/")} messages={messages} />} />
                 <Route path="/player-settings" element={<PlayerCreationScreen playerCount={playerCount} players={players} setPlayers={setPlayers} next={() => navigate("/game/67")} back={() => navigate("/players")} startMoney={settings.startMoney}/>} />
                 <Route path="/statistic" element={<StatsticScreen back={() => navigate("/")} />} />
                 <Route path="/gamesettings" element={<SettingsScreen settings={settings} setSettings={setSettings} startGame={startGame} next={() => navigate("/player-settings")} back={() => navigate("/players")}/>}/>

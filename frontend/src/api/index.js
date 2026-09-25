@@ -7,9 +7,9 @@ let connect = cb => {
         console.log("Successfully Connected");
     };
 
-    socket.onmessage = msg => {
-        console.log(msg);
-        cb(msg);
+    socket.onmessage = event => {
+        const parsedData = JSON.parse(event.data);
+        cb(parsedData);
     };
 
     socket.onclose = event => {
