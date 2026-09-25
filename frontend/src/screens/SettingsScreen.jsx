@@ -1,4 +1,14 @@
+import {sendMsg} from "../api/index.js";
+
 export default function SettingsScreen({ settings, setSettings, next, back }) {
+
+    function create(){
+            const payload = JSON.stringify({
+                action: "CREATE_GAME",
+                settings: settings
+            });
+            sendMsg(payload);
+    }
     return (
         <>
             <h2>Game Settings</h2>
@@ -115,6 +125,7 @@ export default function SettingsScreen({ settings, setSettings, next, back }) {
 
             <button onClick={back}>Back</button>
             <button onClick={next}>Start game</button>
+            <button onClick={create}>Create Game</button>
         </>
     );
 }
