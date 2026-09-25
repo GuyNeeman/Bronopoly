@@ -1,6 +1,7 @@
 package websocket
 
 import (
+	"encoding/json"
 	"fmt"
 	"log"
 
@@ -20,6 +21,11 @@ type Client struct {
 	Player Player
 }
 
+type IncomingAction struct {
+	Action   string       `json:"action"`
+	Settings GameSettings `json:"settings"`
+}
+
 type Message struct {
 	Type int    `json:"type"`
 	Body string `json:"body"`
@@ -37,8 +43,23 @@ func (c *Client) Read() {
 			log.Println(err)
 			return
 		}
-		message := Message{Type: messageType, Body: string(p)}
-		c.Pool.Broadcast <- message
-		fmt.Printf("Message Received: %+v\n", message)
+
+		var incoming IncomingAction
+		if err := json.Unmarshal(p, &incoming); err == nil && incoming.Action != "" {
+			fmt.Printf("Action Received: %s\n", incoming.Action)
+
+			switch incoming.Action {
+			case "CREATE_GAME":
+				c.Pool.CreateGame(incoming.Settings)
+			case "ROLL_DICE":
+				c.Pool.HandleRollDice(c)
+			default:
+				fmt.Println("Unknown action:", incoming.Action)
+			}
+		} else {
+			message := Message{Type: messageType, Body: string(p)}
+			c.Pool.Broadcast <- message
+			fmt.Printf("Standard Message Received: %+v\n", message)
+		}
 	}
 }

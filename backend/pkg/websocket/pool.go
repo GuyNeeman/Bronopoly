@@ -54,6 +54,24 @@ func NewPool() *Pool {
 	}
 }
 
+func (pool *Pool) CreateGame(settings GameSettings) {
+	pool.GameSettings = settings
+	pool.GameState = NewGameState()
+
+	for client := range pool.Clients {
+		client.Player.Money = settings.StartingMoney
+		client.Player.Position = 0
+		pool.GameState.Players = append(pool.GameState.Players, client.Player)
+	}
+
+	updateMsg := Message{
+		Type: 1,
+		Body: fmt.Sprintf("Game created with settings: %+v", settings),
+	}
+
+	pool.Broadcast <- updateMsg
+}
+
 func (pool *Pool) HandleRollDice(client *Client) {
 	r := rand.New(rand.NewSource(time.Now().UnixNano()))
 
