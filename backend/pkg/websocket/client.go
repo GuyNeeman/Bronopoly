@@ -94,6 +94,11 @@ func (c *Client) Read() {
 					fmt.Println("Room not found:", incoming.RoomID)
 				}
 
+			case "START_GAME":
+				if c.Pool != nil {
+					c.Pool.CreateGame(incoming.Settings)
+				}
+
 			case "ROLL_DICE":
 				c.Pool.HandleRollDice(c)
 
