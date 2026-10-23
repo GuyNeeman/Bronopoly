@@ -79,6 +79,8 @@ func (c *Client) Read() {
 
 				newPool := NewPool()
 				newPool.ID = roomID
+				newPool.GameSettings = incoming.Settings // save the creator's settings on the room
+				newPool.Owner = &incoming.Player
 				go newPool.Start()
 
 				manager.Add(roomID, newPool)
@@ -95,9 +97,7 @@ func (c *Client) Read() {
 				}
 
 			case "START_GAME":
-				if c.Pool != nil {
-					c.Pool.CreateGame(incoming.Settings)
-				}
+				c.Pool.CreateGame()
 
 			case "ROLL_DICE":
 				c.Pool.HandleRollDice(c)
