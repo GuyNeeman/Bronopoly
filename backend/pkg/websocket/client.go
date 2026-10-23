@@ -42,6 +42,20 @@ type DiceRollData struct {
 	Position   int    `json:"position"`
 }
 
+type RoomCreatedData struct {
+	RoomID string `json:"roomID"`
+}
+
+// switchPool removes the client from its current pool (e.g. the lobby)
+// before registering it in the new one, so it is never in two pools at once.
+func (c *Client) switchPool(newPool *Pool) {
+	if c.Pool != nil {
+		c.Pool.Unregister <- c
+	}
+	c.Pool = newPool
+	newPool.Register <- c
+}
+
 func (c *Client) Read() {
 	defer func() {
 		c.Pool.Unregister <- c
@@ -63,24 +77,26 @@ func (c *Client) Read() {
 			case "CREATE_ROOM":
 				roomID := "monopoly_" + uuid.New().String()
 
-				// 2. Create a new Pool for this specific room
 				newPool := NewPool()
-				go newPool.Start() // Start its background event loop
+				newPool.ID = roomID
+				go newPool.Start()
 
-				// 3. Save it in the manager
-				manager.Rooms[roomID] = newPool
+				manager.Add(roomID, newPool)
+				c.switchPool(newPool)
 
-				// 4. Register the client into this specific pool
-				newPool.Register <- c
-				c.Pool = newPool
+				// Tell the creator the room ID so it can be shared.
+				newPool.Broadcast <- Message{Type: 3, Body: RoomCreatedData{RoomID: roomID}}
+
 			case "JOIN_ROOM":
-				// Find the existing pool by roomID
-				if targetPool, exists := manager.Rooms[incoming.RoomID]; exists {
-					c.Pool = targetPool
-					targetPool.Register <- c
+				if targetPool, exists := manager.Get(incoming.RoomID); exists {
+					c.switchPool(targetPool)
+				} else {
+					fmt.Println("Room not found:", incoming.RoomID)
 				}
+
 			case "ROLL_DICE":
 				c.Pool.HandleRollDice(c)
+
 			default:
 				fmt.Println("Unknown action:", incoming.Action)
 			}

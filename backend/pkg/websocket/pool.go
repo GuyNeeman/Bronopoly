@@ -3,10 +3,12 @@ package websocket
 import (
 	"fmt"
 	"math/rand"
+	"sync"
 	"time"
 )
 
 type Pool struct {
+	ID           string
 	Register     chan *Client
 	Unregister   chan *Client
 	Clients      map[*Client]bool
@@ -17,6 +19,7 @@ type Pool struct {
 }
 
 type GameRoomManager struct {
+	mu    sync.RWMutex
 	Rooms map[string]*Pool
 }
 
@@ -24,6 +27,25 @@ func NewGameRoomManager() *GameRoomManager {
 	return &GameRoomManager{
 		Rooms: make(map[string]*Pool),
 	}
+}
+
+func (m *GameRoomManager) Get(id string) (*Pool, bool) {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+	p, ok := m.Rooms[id]
+	return p, ok
+}
+
+func (m *GameRoomManager) Add(id string, p *Pool) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	m.Rooms[id] = p
+}
+
+func (m *GameRoomManager) Remove(id string) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	delete(m.Rooms, id)
 }
 
 var manager = NewGameRoomManager()
@@ -93,7 +115,6 @@ func (pool *Pool) HandleRollDice(client *Client) {
 
 	client.Player.Position = (client.Player.Position + totalStep) % 40
 
-	// Create your structured data object
 	rollData := DiceRollData{
 		PlayerName: client.Player.Name,
 		Dice1:      dice1,
@@ -102,13 +123,24 @@ func (pool *Pool) HandleRollDice(client *Client) {
 		Position:   client.Player.Position,
 	}
 
-	// Wrap it inside the Message Body
 	updateMsg := Message{
-		Type: 2, // e.g., Type 2 for game events, Type 1 for chat
+		Type: 2, // Type 2 for game events, Type 1 for chat
 		Body: rollData,
 	}
 
 	pool.Broadcast <- updateMsg
+}
+
+// sendAll writes msg to every client and drops any client whose write fails,
+// instead of shutting down the whole pool.
+func (pool *Pool) sendAll(msg Message) {
+	for client := range pool.Clients {
+		if err := client.Conn.WriteJSON(msg); err != nil {
+			fmt.Println("write error, dropping client:", err)
+			delete(pool.Clients, client)
+			client.Conn.Close()
+		}
+	}
 }
 
 func (pool *Pool) Start() {
@@ -117,26 +149,23 @@ func (pool *Pool) Start() {
 		case client := <-pool.Register:
 			pool.Clients[client] = true
 			fmt.Println("Size of Connection Pool: ", len(pool.Clients))
-			for client, _ := range pool.Clients {
-				fmt.Println(client)
-				client.Conn.WriteJSON(Message{Type: 1, Body: "New User Joined..."})
-			}
-			break
+			pool.sendAll(Message{Type: 1, Body: "New User Joined..."})
+
 		case client := <-pool.Unregister:
 			delete(pool.Clients, client)
 			fmt.Println("Size of Connection Pool: ", len(pool.Clients))
-			for client, _ := range pool.Clients {
-				client.Conn.WriteJSON(Message{Type: 1, Body: "User Disconnected..."})
+
+			// Close empty game rooms (never the lobby).
+			if len(pool.Clients) == 0 && pool.ID != "" {
+				manager.Remove(pool.ID)
+				fmt.Println("Room closed:", pool.ID)
+				return
 			}
-			break
+			pool.sendAll(Message{Type: 1, Body: "User Disconnected..."})
+
 		case message := <-pool.Broadcast:
 			fmt.Println("Sending message to all clients in Pool")
-			for client, _ := range pool.Clients {
-				if err := client.Conn.WriteJSON(message); err != nil {
-					fmt.Println(err)
-					return
-				}
-			}
+			pool.sendAll(message)
 		}
 	}
 }

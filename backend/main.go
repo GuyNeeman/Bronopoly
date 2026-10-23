@@ -12,6 +12,7 @@ func serveWs(pool *websocket.Pool, w http.ResponseWriter, r *http.Request) {
 	conn, err := websocket.Upgrade(w, r)
 	if err != nil {
 		fmt.Fprintf(w, "%+v\n", err)
+		return
 	}
 
 	client := &websocket.Client{
@@ -24,11 +25,11 @@ func serveWs(pool *websocket.Pool, w http.ResponseWriter, r *http.Request) {
 }
 
 func setupRoutes() {
-	pool := websocket.NewPool()
-	go pool.Start()
+	lobby := websocket.NewPool() // ID "" = lobby, never closed
+	go lobby.Start()
 
 	http.HandleFunc("/ws", func(w http.ResponseWriter, r *http.Request) {
-		serveWs(pool, w, r)
+		serveWs(lobby, w, r)
 	})
 }
 
