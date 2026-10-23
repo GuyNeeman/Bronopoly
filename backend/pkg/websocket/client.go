@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log"
 
+	"github.com/google/uuid"
 	"github.com/gorilla/websocket"
 )
 
@@ -23,6 +24,8 @@ type Client struct {
 
 type IncomingAction struct {
 	Action   string       `json:"action"`
+	RoomID   string       `json:"roomID"`
+	Player   Player       `json:"player"`
 	Settings GameSettings `json:"settings"`
 }
 
@@ -57,8 +60,25 @@ func (c *Client) Read() {
 			fmt.Printf("Action Received: %s\n", incoming.Action)
 
 			switch incoming.Action {
-			case "CREATE_GAME":
-				c.Pool.CreateGame(incoming.Settings)
+			case "CREATE_ROOM":
+				roomID := "monopoly_" + uuid.New().String()
+
+				// 2. Create a new Pool for this specific room
+				newPool := NewPool()
+				go newPool.Start() // Start its background event loop
+
+				// 3. Save it in the manager
+				manager.Rooms[roomID] = newPool
+
+				// 4. Register the client into this specific pool
+				newPool.Register <- c
+				c.Pool = newPool
+			case "JOIN_ROOM":
+				// Find the existing pool by roomID
+				if targetPool, exists := manager.Rooms[incoming.RoomID]; exists {
+					c.Pool = targetPool
+					targetPool.Register <- c
+				}
 			case "ROLL_DICE":
 				c.Pool.HandleRollDice(c)
 			default:

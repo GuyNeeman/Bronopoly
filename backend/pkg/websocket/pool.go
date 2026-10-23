@@ -16,6 +16,18 @@ type Pool struct {
 	GameResults  GameResults
 }
 
+type GameRoomManager struct {
+	Rooms map[string]*Pool
+}
+
+func NewGameRoomManager() *GameRoomManager {
+	return &GameRoomManager{
+		Rooms: make(map[string]*Pool),
+	}
+}
+
+var manager = NewGameRoomManager()
+
 type GameState struct {
 	Players     []Player `json:"players"`
 	CurrentTurn int      `json:"currentTurn"`
