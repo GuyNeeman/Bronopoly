@@ -107,6 +107,15 @@ func (pool *Pool) CreateGame(settings GameSettings) {
 }
 
 func (pool *Pool) HandleRollDice(client *Client) {
+
+	player := client.Player
+	idx := pool.GameState.CurrentTurn
+
+	if player.ID != pool.GameState.Players[idx].ID {
+		client.Conn.WriteJSON(Message{Type: 1, Body: "Du bist nicht dran!"})
+		return
+	}
+
 	r := rand.New(rand.NewSource(time.Now().UnixNano()))
 
 	dice1 := r.Intn(6) + 1

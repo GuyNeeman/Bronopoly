@@ -10,6 +10,7 @@ import (
 )
 
 type Player struct {
+	ID       int    `json:"id"`
 	Name     string `json:"name"`
 	Money    int    `json:"money"`
 	Position int    `json:"position"`
