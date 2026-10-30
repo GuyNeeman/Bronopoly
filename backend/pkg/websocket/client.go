@@ -47,19 +47,34 @@ type RoomCreatedData struct {
 	RoomID string `json:"roomID"`
 }
 
-// switchPool removes the client from its current pool (e.g. the lobby)
-// before registering it in the new one, so it is never in two pools at once.
-func (c *Client) switchPool(newPool *Pool) {
-	if c.Pool != nil {
-		c.Pool.Unregister <- c
+// switchPool leaves the current pool, then joins the new one, so a client is
+// never in two pools at once. If the new room closed in the meantime, the
+// client goes back where it was (or to the lobby) and false is returned.
+func (c *Client) switchPool(newPool *Pool) bool {
+	old := c.Pool
+	if old == newPool {
+		return true
 	}
-	c.Pool = newPool
-	newPool.Register <- c
+	if old != nil {
+		old.leave(c)
+	}
+
+	if newPool.join(c) {
+		c.Pool = newPool
+		return true
+	}
+
+	if old != nil && old.join(c) {
+		return false
+	}
+	Lobby.join(c)
+	c.Pool = Lobby
+	return false
 }
 
 func (c *Client) Read() {
 	defer func() {
-		c.Pool.Unregister <- c
+		c.Pool.leave(c)
 		c.Conn.Close()
 	}()
 
@@ -88,12 +103,11 @@ func (c *Client) Read() {
 				c.switchPool(newPool)
 
 				// Tell the creator the room ID so it can be shared.
-				newPool.Broadcast <- Message{Type: 3, Body: RoomCreatedData{RoomID: roomID}}
+				newPool.say(Message{Type: 3, Body: RoomCreatedData{RoomID: roomID}})
 
 			case "JOIN_ROOM":
-				if targetPool, exists := manager.Get(incoming.RoomID); exists {
-					c.switchPool(targetPool)
-				} else {
+				targetPool, exists := manager.Get(incoming.RoomID)
+				if !exists || !c.switchPool(targetPool) {
 					fmt.Println("Room not found:", incoming.RoomID)
 				}
 
@@ -108,7 +122,7 @@ func (c *Client) Read() {
 			}
 		} else {
 			message := Message{Type: messageType, Body: string(p)}
-			c.Pool.Broadcast <- message
+			c.Pool.say(message)
 			fmt.Printf("Standard Message Received: %+v\n", message)
 		}
 	}

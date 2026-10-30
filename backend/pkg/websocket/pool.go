@@ -17,6 +17,8 @@ type Pool struct {
 	GameSettings GameSettings
 	GameResults  GameResults
 	Owner        *Player
+
+	done chan struct{} // closed when this room's Start() loop stops
 }
 
 type GameRoomManager struct {
@@ -50,6 +52,16 @@ func (m *GameRoomManager) Remove(id string) {
 }
 
 var manager = NewGameRoomManager()
+
+// Lobby is where every connection starts.
+var Lobby *Pool
+
+// NewLobby creates and starts the lobby. Call it once from main.
+func NewLobby() *Pool {
+	Lobby = NewPool()
+	go Lobby.Start()
+	return Lobby
+}
 
 type GameState struct {
 	Players     []Player `json:"players"`
@@ -87,6 +99,33 @@ func NewPool() *Pool {
 		GameSettings: GameSettings{},
 		GameResults:  GameResults{},
 		Owner:        &Player{},
+		done:         make(chan struct{}),
+	}
+}
+
+// join, leave and say send into the room's loop from outside.
+// Each one gives up instead of blocking forever if the room has closed.
+
+func (pool *Pool) join(c *Client) bool {
+	select {
+	case pool.Register <- c:
+		return true
+	case <-pool.done:
+		return false
+	}
+}
+
+func (pool *Pool) leave(c *Client) {
+	select {
+	case pool.Unregister <- c:
+	case <-pool.done:
+	}
+}
+
+func (pool *Pool) say(msg Message) {
+	select {
+	case pool.Broadcast <- msg:
+	case <-pool.done:
 	}
 }
 
@@ -142,6 +181,10 @@ func (pool *Pool) HandleRollDice(client *Client) {
 	pool.Broadcast <- updateMsg
 }
 
+func (pool *Pool) StartGame() {
+
+}
+
 // sendAll writes msg to every client and drops any client whose write fails,
 // instead of shutting down the whole pool.
 func (pool *Pool) sendAll(msg Message) {
@@ -155,6 +198,8 @@ func (pool *Pool) sendAll(msg Message) {
 }
 
 func (pool *Pool) Start() {
+	defer close(pool.done)
+
 	for {
 		select {
 		case client := <-pool.Register:

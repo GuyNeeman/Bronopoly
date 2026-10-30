@@ -25,9 +25,7 @@ func serveWs(pool *websocket.Pool, w http.ResponseWriter, r *http.Request) {
 }
 
 func setupRoutes() {
-	lobby := websocket.NewPool() // ID "" = lobby, never closed
-	go lobby.Start()
-
+	lobby := websocket.NewLobby() // every connection starts here
 	http.HandleFunc("/ws", func(w http.ResponseWriter, r *http.Request) {
 		serveWs(lobby, w, r)
 	})
