@@ -16,6 +16,7 @@ type Pool struct {
 	GameState    GameState
 	GameSettings GameSettings
 	GameResults  GameResults
+	Owner        *Player
 }
 
 type GameRoomManager struct {
@@ -85,11 +86,12 @@ func NewPool() *Pool {
 		GameState:    NewGameState(),
 		GameSettings: GameSettings{},
 		GameResults:  GameResults{},
+		Owner:        &Player{},
 	}
 }
 
-func (pool *Pool) CreateGame(settings GameSettings) {
-	pool.GameSettings = settings
+func (pool *Pool) CreateGame() {
+	settings := pool.GameSettings
 	pool.GameState = NewGameState()
 
 	for client := range pool.Clients {

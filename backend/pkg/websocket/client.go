@@ -80,6 +80,8 @@ func (c *Client) Read() {
 
 				newPool := NewPool()
 				newPool.ID = roomID
+				newPool.GameSettings = incoming.Settings // save the creator's settings on the room
+				newPool.Owner = &incoming.Player
 				go newPool.Start()
 
 				manager.Add(roomID, newPool)
@@ -94,6 +96,9 @@ func (c *Client) Read() {
 				} else {
 					fmt.Println("Room not found:", incoming.RoomID)
 				}
+
+			case "START_GAME":
+				c.Pool.CreateGame()
 
 			case "ROLL_DICE":
 				c.Pool.HandleRollDice(c)
