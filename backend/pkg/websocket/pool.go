@@ -17,8 +17,14 @@ type Pool struct {
 	GameSettings GameSettings
 	GameResults  GameResults
 	Owner        *Player
+	Actions      chan action
 
 	done chan struct{} // closed when this room's Start() loop stops
+}
+
+type action struct {
+	client *Client
+	in     IncomingAction
 }
 
 type GameRoomManager struct {
@@ -49,6 +55,13 @@ func (m *GameRoomManager) Remove(id string) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	delete(m.Rooms, id)
+}
+
+func (pool *Pool) act(a action) {
+	select {
+	case pool.Actions <- a:
+	case <-pool.done:
+	}
 }
 
 var manager = NewGameRoomManager()
@@ -99,6 +112,7 @@ func NewPool() *Pool {
 		GameSettings: GameSettings{},
 		GameResults:  GameResults{},
 		Owner:        &Player{},
+		Actions:      make(chan action),
 		done:         make(chan struct{}),
 	}
 }
@@ -129,6 +143,15 @@ func (pool *Pool) say(msg Message) {
 	}
 }
 
+func (pool *Pool) handleAction(a action) {
+	switch a.in.Action {
+	case "START_GAME":
+		pool.CreateGame()
+	case "ROLL_DICE":
+		pool.HandleRollDice(a.client)
+	}
+}
+
 func (pool *Pool) CreateGame() {
 	settings := pool.GameSettings
 	pool.GameState = NewGameState()
@@ -144,7 +167,7 @@ func (pool *Pool) CreateGame() {
 		Body: fmt.Sprintf("Game created with settings: %+v", settings),
 	}
 
-	pool.Broadcast <- updateMsg
+	pool.sendAll(updateMsg)
 }
 
 func (pool *Pool) HandleRollDice(client *Client) {
@@ -196,10 +219,13 @@ func (pool *Pool) sendAll(msg Message) {
 }
 
 func (pool *Pool) Start() {
+
 	defer close(pool.done)
 
 	for {
 		select {
+		case a := <-pool.Actions:
+			pool.handleAction(a)
 		case client := <-pool.Register:
 			pool.Clients[client] = true
 			fmt.Println("Size of Connection Pool: ", len(pool.Clients))

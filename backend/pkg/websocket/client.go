@@ -129,11 +129,8 @@ func (c *Client) Read() {
 					fmt.Println("Room not found:", incoming.RoomID)
 				}
 
-			case "START_GAME":
-				c.Pool.CreateGame()
-
-			case "ROLL_DICE":
-				c.Pool.HandleRollDice(c)
+			case "START_GAME", "ROLL_DICE":
+				c.Pool.act(action{client: c, in: incoming})
 
 			default:
 				fmt.Println("Unknown action:", incoming.Action)
