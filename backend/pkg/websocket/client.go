@@ -21,6 +21,7 @@ type Client struct {
 	Conn   *websocket.Conn
 	Pool   *Pool
 	Player Player
+	Send   chan Message
 }
 
 type IncomingAction struct {
@@ -47,9 +48,25 @@ type RoomCreatedData struct {
 	RoomID string `json:"roomID"`
 }
 
-// switchPool leaves the current pool, then joins the new one, so a client is
-// never in two pools at once. If the new room closed in the meantime, the
-// client goes back where it was (or to the lobby) and false is returned.
+func (c *Client) WritePump() {
+	defer c.Conn.Close()
+	for msg := range c.Send {
+		if err := c.Conn.WriteJSON(msg); err != nil {
+			log.Println("write error:", err)
+			return
+		}
+	}
+	c.Conn.WriteMessage(websocket.CloseMessage, []byte{})
+}
+
+func (c *Client) send(msg Message) bool {
+	select {
+	case c.Send <- msg:
+		return true
+	default:
+		return false
+	}
+}
 func (c *Client) switchPool(newPool *Pool) bool {
 	old := c.Pool
 	if old == newPool {
@@ -74,7 +91,8 @@ func (c *Client) switchPool(newPool *Pool) bool {
 
 func (c *Client) Read() {
 	defer func() {
-		c.Pool.leave(c)
+		c.Pool.leave(c) // 1. pool forgets us, so nobody sends to c.Send anymore
+		close(c.Send)   // 2. writePump drains and exits
 		c.Conn.Close()
 	}()
 

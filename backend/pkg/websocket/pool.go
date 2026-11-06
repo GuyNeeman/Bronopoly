@@ -153,7 +153,7 @@ func (pool *Pool) HandleRollDice(client *Client) {
 	idx := pool.GameState.CurrentTurn
 
 	if player.ID != pool.GameState.Players[idx].ID {
-		client.Conn.WriteJSON(Message{Type: 1, Body: "Du bist nicht dran!"})
+		client.send(Message{Type: 1, Body: "Du bist nicht dran!"})
 		return
 	}
 
@@ -185,12 +185,10 @@ func (pool *Pool) StartGame() {
 
 }
 
-// sendAll writes msg to every client and drops any client whose write fails,
-// instead of shutting down the whole pool.
 func (pool *Pool) sendAll(msg Message) {
 	for client := range pool.Clients {
-		if err := client.Conn.WriteJSON(msg); err != nil {
-			fmt.Println("write error, dropping client:", err)
+		if !client.send(msg) {
+			fmt.Println("client too slow, dropping:", client.ID)
 			delete(pool.Clients, client)
 			client.Conn.Close()
 		}
