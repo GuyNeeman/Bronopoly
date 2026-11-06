@@ -144,9 +144,9 @@ func (pool *Pool) say(msg Message) {
 
 func (pool *Pool) handleAction(a action) {
 	switch a.in.Action {
-	case "START_GAME":
+	case ActionStartGame:
 		pool.CreateGame()
-	case "ROLL_DICE":
+	case ActionRollDice:
 		pool.HandleRollDice(a.client)
 	}
 }
@@ -162,7 +162,7 @@ func (pool *Pool) CreateGame() {
 	}
 
 	updateMsg := Message{
-		Type: 1,
+		Type: MsgChat,
 		Body: fmt.Sprintf("Game created with settings: %+v", settings),
 	}
 
@@ -175,7 +175,7 @@ func (pool *Pool) HandleRollDice(client *Client) {
 	idx := pool.GameState.CurrentTurn
 
 	if player.ID != pool.GameState.Players[idx].ID {
-		client.send(Message{Type: 1, Body: "Du bist nicht dran!"})
+		client.send(Message{Type: MsgChat, Body: "Du bist nicht dran!"})
 		return
 	}
 
@@ -196,7 +196,7 @@ func (pool *Pool) HandleRollDice(client *Client) {
 	}
 
 	updateMsg := Message{
-		Type: 2, // Type 2 for game events, Type 1 for chat
+		Type: MsgGameEvent, // Type 2 for game events, Type 1 for chat
 		Body: rollData,
 	}
 
@@ -228,7 +228,7 @@ func (pool *Pool) Start() {
 		case client := <-pool.Register:
 			pool.Clients[client] = true
 			fmt.Println("Size of Connection Pool: ", len(pool.Clients))
-			pool.sendAll(Message{Type: 1, Body: "New User Joined..."})
+			pool.sendAll(Message{Type: MsgChat, Body: "New User Joined..."})
 
 		case client := <-pool.Unregister:
 			delete(pool.Clients, client)
@@ -240,7 +240,7 @@ func (pool *Pool) Start() {
 				fmt.Println("Room closed:", pool.ID)
 				return
 			}
-			pool.sendAll(Message{Type: 1, Body: "User Disconnected..."})
+			pool.sendAll(Message{Type: MsgChat, Body: "User Disconnected..."})
 
 		case message := <-pool.Broadcast:
 			fmt.Println("Sending message to all clients in Pool")

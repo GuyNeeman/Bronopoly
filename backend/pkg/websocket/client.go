@@ -30,6 +30,7 @@ type IncomingAction struct {
 	RoomID   string         `json:"roomID"`
 	Player   IncomingPlayer `json:"player"`
 	Settings GameSettings   `json:"settings"`
+	Text     string         `json:"text"`
 }
 
 type IncomingPlayer struct {
@@ -120,47 +121,57 @@ func (c *Client) Read() {
 	}()
 
 	for {
-		messageType, p, err := c.Conn.ReadMessage()
+		_, p, err := c.Conn.ReadMessage()
 		if err != nil {
 			log.Println(err)
 			return
 		}
 
 		var incoming IncomingAction
-		if err := json.Unmarshal(p, &incoming); err == nil && incoming.Action != "" {
-			fmt.Printf("Action Received: %s\n", incoming.Action)
+		if err := json.Unmarshal(p, &incoming); err != nil || incoming.Action == "" {
+			log.Println("ignoring invalid message:", string(p))
+			continue
+		}
 
-			switch incoming.Action {
-			case "CREATE_ROOM":
-				roomID := "monopoly_" + uuid.New().String()
+		switch incoming.Action {
+		case ActionCreateRoom:
+			roomID := "monopoly_" + uuid.New().String()
 
-				newPool := NewPool()
-				newPool.ID = roomID
-				newPool.GameSettings = incoming.Settings
-				newPool.OwnerID = c.ID
-				go newPool.Start()
+			newPool := NewPool()
+			newPool.ID = roomID
+			newPool.GameSettings = incoming.Settings
+			newPool.OwnerID = c.ID
+			go newPool.Start()
 
-				manager.Add(roomID, newPool)
-				c.switchPool(newPool, incoming.Player.Name)
+			manager.Add(roomID, newPool)
+			c.switchPool(newPool, incoming.Player.Name)
 
-				newPool.say(Message{Type: 3, Body: RoomCreatedData{RoomID: roomID}})
+			newPool.say(Message{Type: 3, Body: RoomCreatedData{RoomID: roomID}})
 
-			case "JOIN_ROOM":
-				targetPool, exists := manager.Get(incoming.RoomID)
-				if !exists || !c.switchPool(targetPool, incoming.Player.Name) {
-					fmt.Println("Room not found:", incoming.RoomID)
-				}
-
-			case "START_GAME", "ROLL_DICE":
-				c.Pool.act(action{client: c, in: incoming})
-
-			default:
-				fmt.Println("Unknown action:", incoming.Action)
+		case ActionJoinRoom:
+			targetPool, exists := manager.Get(incoming.RoomID)
+			if !exists || !c.switchPool(targetPool, incoming.Player.Name) {
+				fmt.Println("Room not found:", incoming.RoomID)
 			}
-		} else {
-			message := Message{Type: messageType, Body: string(p)}
-			c.Pool.say(message)
-			fmt.Printf("Standard Message Received: %+v\n", message)
+
+		case ActionStartGame, ActionRollDice:
+			c.Pool.act(action{client: c, in: incoming})
+
+		case ActionChat:
+			text := strings.TrimSpace(incoming.Text)
+			if text == "" {
+				continue
+			}
+			if len(text) > maxChatLength {
+				text = text[:maxChatLength]
+			}
+			c.Pool.say(Message{
+				Type: MsgChat,
+				Body: ChatData{From: c.Player.Name, Text: text},
+			})
+
+		default:
+			fmt.Println("Unknown action:", incoming.Action)
 		}
 	}
 }
