@@ -16,7 +16,7 @@ type Pool struct {
 	GameState    GameState
 	GameSettings GameSettings
 	GameResults  GameResults
-	Owner        *Player
+	OwnerID      string
 	Actions      chan action
 
 	done chan struct{} // closed when this room's Start() loop stops
@@ -111,7 +111,6 @@ func NewPool() *Pool {
 		GameState:    NewGameState(),
 		GameSettings: GameSettings{},
 		GameResults:  GameResults{},
-		Owner:        &Player{},
 		Actions:      make(chan action),
 		done:         make(chan struct{}),
 	}

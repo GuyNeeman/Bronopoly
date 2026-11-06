@@ -4,13 +4,14 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
+	"strings"
 
 	"github.com/google/uuid"
 	"github.com/gorilla/websocket"
 )
 
 type Player struct {
-	ID       int    `json:"id"`
+	ID       string `json:"id"`
 	Name     string `json:"name"`
 	Money    int    `json:"money"`
 	Position int    `json:"position"`
@@ -25,10 +26,18 @@ type Client struct {
 }
 
 type IncomingAction struct {
-	Action   string       `json:"action"`
-	RoomID   string       `json:"roomID"`
-	Player   Player       `json:"player"`
-	Settings GameSettings `json:"settings"`
+	Action   string         `json:"action"`
+	RoomID   string         `json:"roomID"`
+	Player   IncomingPlayer `json:"player"`
+	Settings GameSettings   `json:"settings"`
+}
+
+type IncomingPlayer struct {
+	Name string `json:"name"`
+}
+
+type WelcomeData struct {
+	PlayerID string `json:"playerID"`
 }
 
 type Message struct {
@@ -67,7 +76,7 @@ func (c *Client) send(msg Message) bool {
 		return false
 	}
 }
-func (c *Client) switchPool(newPool *Pool) bool {
+func (c *Client) switchPool(newPool *Pool, name string) bool {
 	old := c.Pool
 	if old == newPool {
 		return true
@@ -75,6 +84,9 @@ func (c *Client) switchPool(newPool *Pool) bool {
 	if old != nil {
 		old.leave(c)
 	}
+
+	// In no pool right now, so no loop is reading c.Player.
+	c.Player.Name = cleanName(name)
 
 	if newPool.join(c) {
 		c.Pool = newPool
@@ -87,6 +99,17 @@ func (c *Client) switchPool(newPool *Pool) bool {
 	Lobby.join(c)
 	c.Pool = Lobby
 	return false
+}
+
+func cleanName(name string) string {
+	name = strings.TrimSpace(name)
+	if name == "" {
+		return "Player"
+	}
+	if len(name) > 20 {
+		name = name[:20]
+	}
+	return name
 }
 
 func (c *Client) Read() {
@@ -113,19 +136,18 @@ func (c *Client) Read() {
 
 				newPool := NewPool()
 				newPool.ID = roomID
-				newPool.GameSettings = incoming.Settings // save the creator's settings on the room
-				newPool.Owner = &incoming.Player
+				newPool.GameSettings = incoming.Settings
+				newPool.OwnerID = c.ID
 				go newPool.Start()
 
 				manager.Add(roomID, newPool)
-				c.switchPool(newPool)
+				c.switchPool(newPool, incoming.Player.Name)
 
-				// Tell the creator the room ID so it can be shared.
 				newPool.say(Message{Type: 3, Body: RoomCreatedData{RoomID: roomID}})
 
 			case "JOIN_ROOM":
 				targetPool, exists := manager.Get(incoming.RoomID)
-				if !exists || !c.switchPool(targetPool) {
+				if !exists || !c.switchPool(targetPool, incoming.Player.Name) {
 					fmt.Println("Room not found:", incoming.RoomID)
 				}
 
@@ -141,4 +163,18 @@ func (c *Client) Read() {
 			fmt.Printf("Standard Message Received: %+v\n", message)
 		}
 	}
+}
+
+func NewClient(conn *websocket.Conn, pool *Pool) *Client {
+	id := uuid.New().String()
+	c := &Client{
+		ID:     id,
+		Conn:   conn,
+		Pool:   pool,
+		Send:   make(chan Message, 32),
+		Player: Player{ID: id},
+	}
+	go c.WritePump()
+	c.send(Message{Type: 7, Body: WelcomeData{PlayerID: id}}) // step 7 gives 7 a name
+	return c
 }
