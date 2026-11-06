@@ -42,6 +42,7 @@ type DiceRollData struct {
 	Dice2      int    `json:"dice2"`
 	Total      int    `json:"total"`
 	Position   int    `json:"position"`
+	Money      int    `json:"money"`
 }
 
 type RoomCreatedData struct {
