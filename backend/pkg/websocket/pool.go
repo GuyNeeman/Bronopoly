@@ -112,6 +112,7 @@ func (pool *Pool) HandleRollDice(client *Client) {
 
 	player := client.Player
 	idx := pool.GameState.CurrentTurn
+	oldPosition := client.Player.Position
 
 	if player.ID != pool.GameState.Players[idx].ID {
 		client.Conn.WriteJSON(Message{Type: 1, Body: "Du bist nicht dran!"})
@@ -126,12 +127,19 @@ func (pool *Pool) HandleRollDice(client *Client) {
 
 	client.Player.Position = (client.Player.Position + totalStep) % 40
 
+	if client.Player.Position == 0 {
+		client.Player.Money += pool.GameSettings.StartingMoney * 2
+	} else if client.Player.Position < oldPosition {
+		client.Player.Money += pool.GameSettings.StartingMoney
+	}
+
 	rollData := DiceRollData{
 		PlayerName: client.Player.Name,
 		Dice1:      dice1,
 		Dice2:      dice2,
 		Total:      totalStep,
 		Position:   client.Player.Position,
+		Money:      client.Player.Money,
 	}
 
 	updateMsg := Message{
