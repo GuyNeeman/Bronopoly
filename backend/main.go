@@ -21,7 +21,7 @@ func serveWs(pool *websocket.Pool, w http.ResponseWriter, r *http.Request) {
 		Send: make(chan websocket.Message, 32),
 	}
 
-	go client.WritePump()
+	client = websocket.NewClient(conn, pool)
 	pool.Register <- client
 	client.Read()
 }
