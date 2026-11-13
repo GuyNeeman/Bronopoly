@@ -170,7 +170,8 @@ func (c *Client) Read() {
 				Type: MsgChat,
 				Body: ChatData{From: c.Player.Name, Text: text},
 			})
-
+		case ActionAuction:
+			c.Pool.startauction()
 		default:
 			fmt.Println("Unknown action:", incoming.Action)
 		}

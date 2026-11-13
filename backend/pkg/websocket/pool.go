@@ -18,8 +18,14 @@ type Pool struct {
 	GameResults  GameResults
 	OwnerID      string
 	Actions      chan action
+	auctionBids  chan Bid
 
 	done chan struct{} // closed when this room's Start() loop stops
+}
+
+type Bid struct {
+	Client *Client
+	Amount int
 }
 
 type action struct {
@@ -185,6 +191,7 @@ func NewPool() *Pool {
 		GameSettings: GameSettings{},
 		GameResults:  GameResults{},
 		Actions:      make(chan action),
+		auctionBids:  make(chan Bid),
 		done:         make(chan struct{}),
 	}
 }
@@ -293,7 +300,76 @@ func (pool *Pool) HandleRollDice(client *Client) {
 	pool.Broadcast <- updateMsg
 }
 
-func (pool *Pool) startauction(client *Client) {}
+func (pool *Pool) startauction(client *Client) {
+	t := &tiles[client.Player.Position]
+
+	pool.sendAll(Message{
+		Type: 9,
+		Body: map[string]interface{}{
+			"property": t.Name,
+			"bid":      0,
+		},
+	})
+
+	go func() {
+		timer := time.NewTimer(5 * time.Second)
+		defer timer.Stop()
+
+		highestBid := 0
+		var highestBidder *Client
+
+		for {
+			select {
+			case bid := <-pool.auctionBids:
+				if bid.Amount > highestBid && bid.Amount <= bid.Client.Player.Money {
+					highestBid = bid.Amount
+					highestBidder = bid.Client
+
+					pool.sendAll(Message{
+						Type: 9,
+						Body: map[string]interface{}{
+							"property": t.Name,
+							"bid":      highestBid,
+						},
+					})
+
+					if !timer.Stop() {
+						select {
+						case <-timer.C:
+						default:
+						}
+					}
+					timer.Reset(5 * time.Second)
+				}
+
+			case <-timer.C:
+				if highestBidder != nil {
+					highestBidder.Player.Money -= highestBid
+					ownerID := highestBidder.Player.ID
+					t.OwnerID = &ownerID
+
+					pool.sendAll(Message{
+						Type: 9,
+						Body: "Auktion beendet! " + highestBidder.Player.Name + " gewinnt für " + fmt.Sprint(highestBid),
+					})
+				} else {
+					pool.sendAll(Message{
+						Type: 9,
+						Body: "Auktion beendet! Kein Gebot abgegeben.",
+					})
+				}
+				return
+			}
+		}
+	}()
+}
+
+func (pool *Pool) handleBid(client *Client, amount int) {
+	pool.auctionBids <- Bid{
+		Client: client,
+		Amount: amount,
+	}
+}
 
 func (pool *Pool) buyProperty(client *Client, t *tile) {
 	if client.Player.Money < t.Price {
