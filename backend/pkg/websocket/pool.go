@@ -2,7 +2,9 @@ package websocket
 
 import (
 	"fmt"
+	"log"
 	"math/rand"
+	"runtime/debug"
 	"sync"
 	"time"
 )
@@ -220,6 +222,12 @@ func (pool *Pool) say(msg Message) {
 }
 
 func (pool *Pool) handleAction(a action) {
+	defer func() {
+		if r := recover(); r != nil {
+			log.Printf("panic in room %s on %s: %v\n%s", pool.ID, a.in.Action, r, debug.Stack())
+		}
+	}()
+
 	switch a.in.Action {
 	case ActionStartGame:
 		pool.CreateGame()
