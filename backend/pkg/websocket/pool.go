@@ -292,6 +292,9 @@ func (pool *Pool) HandleRollDice(client *Client) {
 
 	pool.Broadcast <- updateMsg
 }
+
+func (pool *Pool) startauction(client *Client) {}
+
 func (pool *Pool) buyProperty(client *Client, t *tile) {
 	if client.Player.Money < t.Price {
 		return
@@ -304,19 +307,10 @@ func (pool *Pool) buyProperty(client *Client, t *tile) {
 }
 
 func (pool *Pool) handleProperty(client *Client, t *tile) {
-	switch t.Type {
-
-	case "property":
-		if t.OwnerID == nil {
-			pool.buyProperty(client, t)
-		}
-
-	case "airport":
-		return
-
-	case "utility":
-		return
+	if t.OwnerID == nil {
+		pool.buyProperty(client, t)
 	}
+	client.Player.Money -= *t.Tax
 }
 
 func (pool *Pool) HandlePlayerLanding(client *Client) {
