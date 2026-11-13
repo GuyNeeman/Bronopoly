@@ -247,6 +247,11 @@ func (pool *Pool) CreateGame() {
 }
 
 func (pool *Pool) HandleRollDice(client *Client) {
+	// Make sure client cannot roll before the game starts
+	if len(pool.GameState.Players) == 0 || pool.GameState.CurrentTurn >= len(pool.GameState.Players) {
+		client.send(Message{Type: MsgError, Body: "Das Spiel hat noch nicht begonnen"})
+		return
+	}
 
 	player := client.Player
 	idx := pool.GameState.CurrentTurn
