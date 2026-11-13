@@ -92,6 +92,7 @@ type GameSettings struct {
 }
 
 type board struct {
+	size  int    `json:"size"`
 	Tiles []tile `json:"tiles"`
 }
 
@@ -137,7 +138,8 @@ func NewPool() *Pool {
 
 func NewBoard() *board {
 	return &board{
-		Tiles: make([]tile, GameSettings.BoardSize),
+		size:  40,
+		Tiles: make([]tile, 40),
 	}
 }
 
@@ -213,11 +215,13 @@ func (pool *Pool) HandleRollDice(client *Client) {
 
 	client.Player.Position = (client.Player.Position + totalStep) % 40
 
+	// Give Player their money
 	if client.Player.Position == 0 {
 		client.Player.Money += pool.GameSettings.StartingMoney * 2
 	} else if client.Player.Position < oldPosition {
 		client.Player.Money += pool.GameSettings.StartingMoney
 	}
+	pool.HandlePlayerLanding(client)
 
 	rollData := DiceRollData{
 		PlayerName: client.Player.Name,
@@ -234,6 +238,13 @@ func (pool *Pool) HandleRollDice(client *Client) {
 	}
 
 	pool.Broadcast <- updateMsg
+}
+
+func (pool *Pool) HandlePlayerLanding(client *Client) {
+	player := client.Player
+	position := client.Player.Position
+
+	if player position
 }
 
 func (pool *Pool) StartGame() {
