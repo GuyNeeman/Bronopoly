@@ -1,131 +1,59 @@
-import {sendMsg} from "../api/index.js";
+import { send } from "../api/index.js";
+
+const NUMBER_SETTINGS = [
+    { key: "startMoney", label: "Starting money", hint: "How much money each player starts with." },
+    { key: "roundMoney", label: "Money for passing start", hint: "Earned every time a player completes a full lap." },
+];
+
+const TOGGLE_SETTINGS = [
+    { key: "vacationCash", label: "Vacation jackpot", hint: "Taxes stack up. Landing on vacation collects all of it." },
+    { key: "auction", label: "Property auctions", hint: "Skipped properties go to auction for everyone." },
+    { key: "noRentInPrison", label: "No rent in prison", hint: "Players in prison can’t collect rent." },
+    { key: "evenBuildings", label: "Even building", hint: "Houses must be built evenly across a set." },
+];
 
 export default function SettingsScreen({ settings, setSettings, next, back }) {
+    const update = (key, value) => setSettings({ ...settings, [key]: value });
 
-    function create(){
-            const payload = JSON.stringify({
-                action: "CREATE_GAME",
-                settings: settings
-            });
-            sendMsg(payload);
+    function create() {
+        send({ action: "CREATE_ROOM", settings });
     }
+
     return (
         <>
             <h2>Game Settings</h2>
 
-            <div className="setting">
-                <label>Starting money</label>
-                <p>
-                    How much money each player starts with.
-                </p>
-                <input
-                    type="number"
-                    value={settings.startMoney}
-                    onChange={(e) =>
-                        setSettings({
-                            ...settings,
-                            startMoney: Number(e.target.value)
-                        })
-                    }
-                />
-            </div>
-
-            <div className="setting">
-                <label>Money for passing start</label>
-                <p>
-                    Earned every time a player completes a full lap.
-                </p>
-                <input
-                    type="number"
-                    value={settings.roundMoney}
-                    onChange={(e) =>
-                        setSettings({
-                            ...settings,
-                            roundMoney: Number(e.target.value)
-                        })
-                    }
-                />
-            </div>
-
-            <div className="setting">
-                <label>
+            {NUMBER_SETTINGS.map(({ key, label, hint }) => (
+                <div className="setting" key={key}>
+                    <label>{label}</label>
+                    <p>{hint}</p>
                     <input
-                        type="checkbox"
-                        checked={settings.vacationCash}
-                        onChange={(e) =>
-                            setSettings({
-                                ...settings,
-                                vacationCash: e.target.checked
-                            })
-                        }
+                        type="number"
+                        value={settings[key]}
+                        onChange={e => update(key, Number(e.target.value))}
                     />
-                    Vacation jackpot
-                </label>
-                <p>
-                    Taxes stack up. Landing on vacation collects all of it.
-                </p>
-            </div>
+                </div>
+            ))}
 
-            <div className="setting">
-                <label>
-                    <input
-                        type="checkbox"
-                        checked={settings.auction}
-                        onChange={(e) =>
-                            setSettings({
-                                ...settings,
-                                auction: e.target.checked
-                            })
-                        }
-                    />
-                    Property auctions
-                </label>
-                <p>
-                    Skipped properties go to auction for everyone.
-                </p>
-            </div>
+            {TOGGLE_SETTINGS.map(({ key, label, hint }) => (
+                <div className="setting" key={key}>
+                    <label>
+                        <input
+                            type="checkbox"
+                            checked={settings[key]}
+                            onChange={e => update(key, e.target.checked)}
+                        />
+                        {label}
+                    </label>
+                    <p>{hint}</p>
+                </div>
+            ))}
 
-            <div className="setting">
-                <label>
-                    <input
-                        type="checkbox"
-                        checked={settings.noRentInPrison}
-                        onChange={(e) =>
-                            setSettings({
-                                ...settings,
-                                noRentInPrison: e.target.checked
-                            })
-                        }
-                    />
-                    No rent in prison
-                </label>
-                <p>
-                    Players in prison can’t collect rent.
-                </p>
+            <div className="button-row">
+                <button onClick={back}>Back</button>
+                <button onClick={next}>Start game</button>
+                <button onClick={create}>Create Game</button>
             </div>
-
-            <div className="setting">
-                <label>
-                    <input
-                        type="checkbox"
-                        checked={settings.evenBuilding}
-                        onChange={(e) =>
-                            setSettings({
-                                ...settings,
-                                evenBuildings: e.target.checked
-                            })
-                        }
-                    />
-                    Even building
-                </label>
-                <p>
-                    Houses must be built evenly across a set.
-                </p>
-            </div>
-
-            <button onClick={back}>Back</button>
-            <button onClick={next}>Start game</button>
-            <button onClick={create}>Create Game</button>
         </>
     );
 }

@@ -5,9 +5,17 @@ import (
 	"fmt"
 	"log"
 	"strings"
+	"time"
 
 	"github.com/google/uuid"
 	"github.com/gorilla/websocket"
+)
+
+const (
+	writeWait      = 10 * time.Second // max time for one write
+	pongWait       = 60 * time.Second // client must answer within this time
+	pingPeriod     = 50 * time.Second // must be shorter than pongWait
+	maxMessageSize = 4096             // bytes per incoming message
 )
 
 type Player struct {
@@ -23,22 +31,22 @@ type Client struct {
 	Pool   *Pool
 	Player Player
 	Send   chan Message
+	token  string
 }
 
 type IncomingAction struct {
-	Action   string         `json:"action"`
-	RoomID   string         `json:"roomID"`
-	Player   IncomingPlayer `json:"player"`
-	Settings GameSettings   `json:"settings"`
-	Text     string         `json:"text"`
-}
-
-type IncomingPlayer struct {
-	Name string `json:"name"`
+	Action   string       `json:"action"`
+	RoomID   string       `json:"roomID"`
+	Name     string       `json:"name"`
+	Settings GameSettings `json:"settings"`
+	Text     string       `json:"text"`
+	Token    string       `json:"token"`
 }
 
 type WelcomeData struct {
 	PlayerID string `json:"playerID"`
+	Name     string `json:"name"`
+	Token    string `json:"token"`
 }
 
 type Message struct {
@@ -59,15 +67,82 @@ type RoomCreatedData struct {
 	RoomID string `json:"roomID"`
 }
 
-func (c *Client) WritePump() {
-	defer c.Conn.Close()
-	for msg := range c.Send {
-		if err := c.Conn.WriteJSON(msg); err != nil {
-			log.Println("write error:", err)
-			return
+// login reads messages until the client logs in or resumes a session.
+// Returns false if the connection dropped first.
+func (c *Client) login() bool {
+	for {
+		_, p, err := c.Conn.ReadMessage()
+		if err != nil {
+			return false
+		}
+		var in IncomingAction
+		if json.Unmarshal(p, &in) != nil {
+			continue
+		}
+
+		var sess *Session
+		switch in.Action {
+		case ActionLogin:
+			sess = sessions.Create(cleanName(in.Name), c)
+
+		case ActionResume:
+			var old *Client
+			var ok bool
+			sess, old, ok = sessions.Resume(in.Token, c)
+			if !ok {
+				c.send(Message{Type: MsgLoginFailed, Body: "Session unbekannt, bitte neu anmelden"})
+				continue
+			}
+			if old != nil {
+				old.Conn.Close() // newer tab wins; the old Read() fails and cleans up
+			}
+
+		default:
+			c.send(Message{Type: MsgError, Body: "Bitte zuerst anmelden"})
+			continue
+		}
+
+		// Not in any pool yet, so no room loop can be reading c.Player.
+		c.token = sess.Token
+		c.ID = sess.PlayerID
+		c.Player = Player{ID: sess.PlayerID, Name: sess.Nickname}
+		c.send(Message{Type: MsgWelcome, Body: WelcomeData{
+			PlayerID: sess.PlayerID, Name: sess.Nickname, Token: sess.Token,
+		}})
+		return true
+	}
+}
+
+func (c *Client) writePump() {
+	ticker := time.NewTicker(pingPeriod)
+	defer func() {
+		ticker.Stop()
+		c.Conn.Close()
+	}()
+
+	for {
+		select {
+		case msg, ok := <-c.Send:
+			c.Conn.SetWriteDeadline(time.Now().Add(writeWait))
+			if !ok { // Send was closed
+				c.Conn.WriteMessage(websocket.CloseMessage, []byte{})
+				return
+			}
+			if err := c.Conn.WriteJSON(msg); err != nil {
+				return
+			}
+		case <-ticker.C:
+			c.Conn.SetWriteDeadline(time.Now().Add(writeWait))
+			if err := c.Conn.WriteMessage(websocket.PingMessage, nil); err != nil {
+				return
+			}
 		}
 	}
-	c.Conn.WriteMessage(websocket.CloseMessage, []byte{})
+}
+
+func Serve(conn *websocket.Conn) {
+	c := NewClient(conn)
+	c.Read()
 }
 
 func (c *Client) send(msg Message) bool {
@@ -78,7 +153,7 @@ func (c *Client) send(msg Message) bool {
 		return false
 	}
 }
-func (c *Client) switchPool(newPool *Pool, name string) bool {
+func (c *Client) switchPool(newPool *Pool) bool {
 	old := c.Pool
 	if old == newPool {
 		return true
@@ -86,9 +161,6 @@ func (c *Client) switchPool(newPool *Pool, name string) bool {
 	if old != nil {
 		old.leave(c)
 	}
-
-	// In no pool right now, so no loop is reading c.Player.
-	c.Player.Name = cleanName(name)
 
 	if newPool.join(c) {
 		c.Pool = newPool
@@ -115,11 +187,26 @@ func cleanName(name string) string {
 }
 
 func (c *Client) Read() {
-	defer func() {
-		c.Pool.leave(c) // 1. pool forgets us, so nobody sends to c.Send anymore
-		close(c.Send)   // 2. writePump drains and exits
-		c.Conn.Close()
-	}()
+	defer c.Conn.Close()
+	defer close(c.Send)
+
+	c.Conn.SetReadLimit(maxMessageSize)
+	c.Conn.SetReadDeadline(time.Now().Add(pongWait))
+	c.Conn.SetPongHandler(func(string) error {
+		c.Conn.SetReadDeadline(time.Now().Add(pongWait))
+		return nil
+	})
+
+	if !c.login() {
+		return
+	}
+	defer sessions.Detach(c.token, c)
+
+	Lobby.join(c)
+	c.Pool = Lobby
+	// Must be a closure: c.Pool changes when the client switches rooms.
+	// "defer c.Pool.leave(c)" would always leave the lobby.
+	defer func() { c.Pool.leave(c) }()
 
 	for {
 		_, p, err := c.Conn.ReadMessage()
@@ -145,13 +232,13 @@ func (c *Client) Read() {
 			go newPool.Start()
 
 			manager.Add(roomID, newPool)
-			c.switchPool(newPool, incoming.Player.Name)
+			c.switchPool(newPool)
 
 			newPool.say(Message{Type: 3, Body: RoomCreatedData{RoomID: roomID}})
 
 		case ActionJoinRoom:
 			targetPool, exists := manager.Get(incoming.RoomID)
-			if !exists || !c.switchPool(targetPool, incoming.Player.Name) {
+			if !exists || !c.switchPool(targetPool) {
 				fmt.Println("Room not found:", incoming.RoomID)
 			}
 
@@ -178,16 +265,11 @@ func (c *Client) Read() {
 	}
 }
 
-func NewClient(conn *websocket.Conn, pool *Pool) *Client {
-	id := uuid.New().String()
+func NewClient(conn *websocket.Conn) *Client {
 	c := &Client{
-		ID:     id,
-		Conn:   conn,
-		Pool:   pool,
-		Send:   make(chan Message, 32),
-		Player: Player{ID: id},
+		Conn: conn,
+		Send: make(chan Message, 32),
 	}
-	go c.WritePump()
-	c.send(Message{Type: 7, Body: WelcomeData{PlayerID: id}}) // step 7 gives 7 a name
+	go c.writePump()
 	return c
 }

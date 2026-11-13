@@ -2,7 +2,9 @@ package websocket
 
 import (
 	"fmt"
+	"log"
 	"math/rand"
+	"runtime/debug"
 	"sync"
 	"time"
 )
@@ -230,6 +232,12 @@ func (pool *Pool) say(msg Message) {
 }
 
 func (pool *Pool) handleAction(a action) {
+	defer func() {
+		if r := recover(); r != nil {
+			log.Printf("panic in room %s on %s: %v\n%s", pool.ID, a.in.Action, r, debug.Stack())
+		}
+	}()
+
 	switch a.in.Action {
 	case ActionStartGame:
 		pool.CreateGame()
@@ -257,6 +265,11 @@ func (pool *Pool) CreateGame() {
 }
 
 func (pool *Pool) HandleRollDice(client *Client) {
+	// Make sure client cannot roll before the game starts
+	if len(pool.GameState.Players) == 0 || pool.GameState.CurrentTurn >= len(pool.GameState.Players) {
+		client.send(Message{Type: MsgError, Body: "Das Spiel hat noch nicht begonnen"})
+		return
+	}
 
 	player := client.Player
 	idx := pool.GameState.CurrentTurn

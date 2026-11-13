@@ -10,7 +10,7 @@ const (
 	MsgGameState   = 5 // GameState (used from step 12)
 	MsgRoomInfo    = 6 // room info (used from step 10)
 	MsgWelcome     = 7 // WelcomeData
-
+	MsgLoginFailed = 8 // string
 	MsgAuction = 9 // Announce Auction
 	MsgBid     = 10
 )
@@ -24,6 +24,8 @@ const (
 	ActionChat       = "CHAT"
 	ActionAuction    = "AUCTION"
 	ActionBid        = "BID"
+	ActionLogin      = "LOGIN"
+	ActionResume     = "RESUME"
 )
 
 const maxChatLength = 300

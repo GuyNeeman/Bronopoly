@@ -12,7 +12,7 @@ export default function PlayerCreationScreen({ playerCount, players, setPlayers,
                 position: 0,
             }))
         );
-    }, [playerCount, startMoney]);
+    }, [playerCount, startMoney, setPlayers]);
 
     function updatePlayer(index, field, value) {
         setPlayers(players.map((player, i) => (i === index ? { ...player, [field]: value } : player)));

@@ -2,39 +2,27 @@ package main
 
 import (
 	"fmt"
+	"log"
 	"net/http"
 
 	"monopoly/pkg/websocket"
 )
 
-func serveWs(pool *websocket.Pool, w http.ResponseWriter, r *http.Request) {
-	fmt.Println("WebSocket Endpoint Hit")
+func serveWs(w http.ResponseWriter, r *http.Request) {
 	conn, err := websocket.Upgrade(w, r)
 	if err != nil {
-		fmt.Fprintf(w, "%+v\n", err)
 		return
 	}
-
-	client := &websocket.Client{
-		Conn: conn,
-		Pool: pool,
-		Send: make(chan websocket.Message, 32),
-	}
-
-	client = websocket.NewClient(conn, pool)
-	pool.Register <- client
-	client.Read()
+	websocket.Serve(conn)
 }
 
 func setupRoutes() {
-	lobby := websocket.NewLobby() // every connection starts here
-	http.HandleFunc("/ws", func(w http.ResponseWriter, r *http.Request) {
-		serveWs(lobby, w, r)
-	})
+	websocket.NewLobby()
+	http.HandleFunc("/ws", serveWs)
 }
 
 func main() {
 	fmt.Println("Bronopoly by Seeby24 and GuyNeeman v0.01")
 	setupRoutes()
-	http.ListenAndServe(":8080", nil)
+	log.Fatal(http.ListenAndServe(":8080", nil))
 }
