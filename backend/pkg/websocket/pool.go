@@ -91,6 +91,10 @@ type GameSettings struct {
 	EvenBuildings  bool `json:"evenBuildings"`
 }
 
+type board struct {
+	Tiles []tile `json:"tiles"`
+}
+
 type tile struct {
 	ID int `json:"id"`
 }
@@ -128,6 +132,12 @@ func NewPool() *Pool {
 		GameResults:  GameResults{},
 		Actions:      make(chan action),
 		done:         make(chan struct{}),
+	}
+}
+
+func NewBoard() *board {
+	return &board{
+		Tiles: make([]tile, GameSettings.BoardSize),
 	}
 }
 
