@@ -91,6 +91,21 @@ type GameSettings struct {
 	EvenBuildings  bool `json:"evenBuildings"`
 }
 
+type tile struct {
+	ID int `json:"id"`
+}
+
+type property struct {
+	Country country `json:"country"`
+	OwnerID string  `json:"ownerId"`
+	Rent    int     `json:"rent"`
+}
+
+type country struct {
+	Name  string `json:"name"`
+	Tiles []tile `json:"tiles"`
+}
+
 type GameResults struct {
 	Winner Player `json:"winner"`
 }
