@@ -97,7 +97,57 @@ type board struct {
 }
 
 type tile struct {
-	ID int `json:"id"`
+	ID      int    `json:"id"`
+	Name    string `json:"name"`
+	Type    string `json:"type"`              // "start", "property", "airport", "utility", "tax", "chance", "community", "jail", "vacation", "goToJail"
+	Country string `json:"country,omitempty"` // only for properties
+	Price   int    `json:"price,omitempty"`
+}
+
+var tiles = []tile{
+	{0, "Start", "start", "", 0},
+	{1, "Athen", "property", "Griechenland", 60},
+	{2, "Gemeinschaftskarte", "community", "", 0},
+	{3, "Thessaloniki", "property", "Griechenland", 60},
+	{4, "Einkommenssteuer", "tax", "", 200},
+	{5, "Flughafen Zürich", "airport", "", 200},
+	{6, "Rom", "property", "Italien", 100},
+	{7, "Ereigniskarte", "chance", "", 0},
+	{8, "Mailand", "property", "Italien", 100},
+	{9, "Venedig", "property", "Italien", 120},
+
+	{10, "Gefängnis", "jail", "", 0},
+	{11, "Madrid", "property", "Spanien", 140},
+	{12, "Elektrizitätswerk", "utility", "", 150},
+	{13, "Barcelona", "property", "Spanien", 140},
+	{14, "Sevilla", "property", "Spanien", 160},
+	{15, "Flughafen Frankfurt", "airport", "", 200},
+	{16, "Berlin", "property", "Deutschland", 180},
+	{17, "Gemeinschaftskarte", "community", "", 0},
+	{18, "München", "property", "Deutschland", 180},
+	{19, "Hamburg", "property", "Deutschland", 200},
+
+	{20, "Ferien", "vacation", "", 0},
+	{21, "Paris", "property", "Frankreich", 220},
+	{22, "Ereigniskarte", "chance", "", 0},
+	{23, "Lyon", "property", "Frankreich", 220},
+	{24, "Marseille", "property", "Frankreich", 240},
+	{25, "Flughafen Paris", "airport", "", 200},
+	{26, "London", "property", "Grossbritannien", 260},
+	{27, "Manchester", "property", "Grossbritannien", 260},
+	{28, "Wasserwerk", "utility", "", 150},
+	{29, "Liverpool", "property", "Grossbritannien", 280},
+
+	{30, "Geh ins Gefängnis", "goToJail", "", 0},
+	{31, "Tokio", "property", "Japan", 300},
+	{32, "Osaka", "property", "Japan", 300},
+	{33, "Gemeinschaftskarte", "community", "", 0},
+	{34, "Kyoto", "property", "Japan", 320},
+	{35, "Flughafen New York", "airport", "", 200},
+	{36, "Ereigniskarte", "chance", "", 0},
+	{37, "Zürich", "property", "Schweiz", 350},
+	{38, "Luxussteuer", "tax", "", 100},
+	{39, "Genf", "property", "Schweiz", 400},
 }
 
 type property struct {
@@ -242,9 +292,18 @@ func (pool *Pool) HandleRollDice(client *Client) {
 
 func (pool *Pool) HandlePlayerLanding(client *Client) {
 	player := client.Player
-	position := client.Player.Position
 
-	if player position
+	t := tiles[client.Player.Position]
+
+	switch t.Type {
+	case "tax":
+		client.Player.Money -= t.Price
+	case "goToJail":
+		client.Player.Position = 10
+	case "property", "airport", "utility":
+		pool.handleProperty(client, t)
+	}
+
 }
 
 func (pool *Pool) StartGame() {
