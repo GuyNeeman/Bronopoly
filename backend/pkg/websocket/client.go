@@ -105,9 +105,9 @@ func (c *Client) login() bool {
 		// Not in any pool yet, so no room loop can be reading c.Player.
 		c.token = sess.Token
 		c.ID = sess.PlayerID
-		c.Player = Player{ID: sess.PlayerID, Name: sess.Name}
+		c.Player = Player{ID: sess.PlayerID, Name: sess.Nickname}
 		c.send(Message{Type: MsgWelcome, Body: WelcomeData{
-			PlayerID: sess.PlayerID, Name: sess.Name, Token: sess.Token,
+			PlayerID: sess.PlayerID, Name: sess.Nickname, Token: sess.Token,
 		}})
 		return true
 	}
@@ -141,7 +141,7 @@ func (c *Client) writePump() {
 }
 
 func Serve(conn *websocket.Conn) {
-	c := NewClient(conn, Lobby)
+	c := NewClient(conn)
 	c.Read()
 }
 
@@ -264,13 +264,11 @@ func (c *Client) Read() {
 	}
 }
 
-func NewClient(conn *websocket.Conn, pool *Pool) *Client {
+func NewClient(conn *websocket.Conn) *Client {
 	c := &Client{
 		Conn: conn,
 		Send: make(chan Message, 32),
-		Pool: pool,
 	}
-	go c.WritePump()
-	c.send(Message{Type: 7, Body: WelcomeData{PlayerID: id}}) // step 7 gives 7 a name
+	go c.writePump()
 	return c
 }

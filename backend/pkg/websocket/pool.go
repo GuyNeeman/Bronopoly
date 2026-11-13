@@ -304,9 +304,6 @@ func (pool *Pool) HandleRollDice(client *Client) {
 }
 
 func (pool *Pool) HandlePlayerLanding(client *Client) {
-	player := client.Player
-
-	t := tiles[client.Player.Position]
 
 	switch t.Type {
 	case "tax":
