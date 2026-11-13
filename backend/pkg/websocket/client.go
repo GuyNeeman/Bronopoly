@@ -5,9 +5,17 @@ import (
 	"fmt"
 	"log"
 	"strings"
+	"time"
 
 	"github.com/google/uuid"
 	"github.com/gorilla/websocket"
+)
+
+const (
+	writeWait      = 10 * time.Second // max time for one write
+	pongWait       = 60 * time.Second // client must answer within this time
+	pingPeriod     = 50 * time.Second // must be shorter than pongWait
+	maxMessageSize = 4096             // bytes per incoming message
 )
 
 type Player struct {
@@ -59,15 +67,37 @@ type RoomCreatedData struct {
 	RoomID string `json:"roomID"`
 }
 
-func (c *Client) WritePump() {
-	defer c.Conn.Close()
-	for msg := range c.Send {
-		if err := c.Conn.WriteJSON(msg); err != nil {
-			log.Println("write error:", err)
-			return
+func (c *Client) writePump() {
+	ticker := time.NewTicker(pingPeriod)
+	defer func() {
+		ticker.Stop()
+		c.Conn.Close()
+	}()
+
+	for {
+		select {
+		case msg, ok := <-c.Send:
+			c.Conn.SetWriteDeadline(time.Now().Add(writeWait))
+			if !ok { // Send was closed
+				c.Conn.WriteMessage(websocket.CloseMessage, []byte{})
+				return
+			}
+			if err := c.Conn.WriteJSON(msg); err != nil {
+				return
+			}
+		case <-ticker.C:
+			c.Conn.SetWriteDeadline(time.Now().Add(writeWait))
+			if err := c.Conn.WriteMessage(websocket.PingMessage, nil); err != nil {
+				return
+			}
 		}
 	}
-	c.Conn.WriteMessage(websocket.CloseMessage, []byte{})
+}
+
+func Serve(conn *websocket.Conn) {
+	c := NewClient(conn, Lobby)
+	Lobby.join(c)
+	c.Read()
 }
 
 func (c *Client) send(msg Message) bool {
@@ -115,6 +145,13 @@ func cleanName(name string) string {
 }
 
 func (c *Client) Read() {
+	c.Conn.SetReadLimit(maxMessageSize)
+	c.Conn.SetReadDeadline(time.Now().Add(pongWait))
+	c.Conn.SetPongHandler(func(string) error {
+		c.Conn.SetReadDeadline(time.Now().Add(pongWait))
+		return nil
+	})
+
 	defer func() {
 		c.Pool.leave(c) // 1. pool forgets us, so nobody sends to c.Send anymore
 		close(c.Send)   // 2. writePump drains and exits
