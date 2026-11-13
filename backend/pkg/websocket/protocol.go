@@ -10,6 +10,7 @@ const (
 	MsgGameState   = 5 // GameState (used from step 12)
 	MsgRoomInfo    = 6 // room info (used from step 10)
 	MsgWelcome     = 7 // WelcomeData
+	MsgLoginFailed = 8 // string
 )
 
 // Actions sent from client to server (IncomingAction.Action).
@@ -19,6 +20,8 @@ const (
 	ActionStartGame  = "START_GAME"
 	ActionRollDice   = "ROLL_DICE"
 	ActionChat       = "CHAT"
+	ActionLogin      = "LOGIN"
+	ActionResume     = "RESUME"
 )
 
 const maxChatLength = 300
