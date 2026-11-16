@@ -11,6 +11,8 @@ const (
 	MsgRoomInfo    = 6 // room info (used from step 10)
 	MsgWelcome     = 7 // WelcomeData
 	MsgLoginFailed = 8 // string
+	MsgAuction = 9 // Announce Auction
+	MsgBid     = 10
 )
 
 // Actions sent from client to server (IncomingAction.Action).
@@ -20,6 +22,8 @@ const (
 	ActionStartGame  = "START_GAME"
 	ActionRollDice   = "ROLL_DICE"
 	ActionChat       = "CHAT"
+	ActionAuction    = "AUCTION"
+	ActionBid        = "BID"
 	ActionLogin      = "LOGIN"
 	ActionResume     = "RESUME"
 )
