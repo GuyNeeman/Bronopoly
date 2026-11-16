@@ -118,7 +118,7 @@ func (c *Client) Read() {
 			})
 
 		// Game: handed to the room loop, the only place that changes game state.
-		case ActionStartGame, ActionRollDice, ActionAuction, ActionBid, ActionPayForPrison:
+		case ActionStartGame, ActionRollDice, ActionAuction, ActionBid, ActionPayForPrison, ActionBuyProperty:
 			c.Pool.act(action{client: c, in: incoming})
 
 		default:
