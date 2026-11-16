@@ -322,6 +322,27 @@ func (pool *Pool) handleTax(t *tile) {
 	}
 }
 
+func (pool *Pool) handleBuyHouse(player *Player, t *tile) {
+	if t.Type != "property" {
+		return
+	}
+	if t.OwnerID == nil || *t.OwnerID != player.ID {
+		return
+	}
+	if t.House == nil {
+		t.House = intPtr(0)
+	}
+	if *t.House >= 5 {
+		return
+	}
+	if player.Money < *t.HousePrice {
+		return
+	}
+
+	player.Money -= *t.HousePrice
+	*t.House++
+}
+
 // ---------------------------------------------------------------------------
 // Prison
 // ---------------------------------------------------------------------------
