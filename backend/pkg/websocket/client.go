@@ -19,10 +19,12 @@ const (
 )
 
 type Player struct {
-	ID       string `json:"id"`
-	Name     string `json:"name"`
-	Money    int    `json:"money"`
-	Position int    `json:"position"`
+	ID           string `json:"id"`
+	Name         string `json:"name"`
+	Money        int    `json:"money"`
+	Position     int    `json:"position"`
+	InJail       bool   `json:"in_jail"`
+	RoundsInJail int    `json:"rounds_in_jail"`
 }
 
 type Client struct {

@@ -286,14 +286,25 @@ func (pool *Pool) HandleRollDice(client *Client) {
 	dice2 := r.Intn(6) + 1
 	totalStep := dice1 + dice2
 
-	client.Player.Position = (client.Player.Position + totalStep) % 40
+	//Make sure Player is still in jail and handle all that :)
+	if client.Player.InJail {
+		if dice1 == dice2 {
+			client.Player.InJail = false
+		} else {
+			client.Player.RoundsInJail++
+			return
+		}
+	} else {
+		client.Player.Position = (client.Player.Position + totalStep) % 40
+	}
 
-	// Give Player their money
+	// Give Player their money if they pass the start field.
 	if client.Player.Position == 0 {
 		client.Player.Money += pool.GameSettings.StartingMoney * 2
 	} else if client.Player.Position < oldPosition {
 		client.Player.Money += pool.GameSettings.StartingMoney
 	}
+
 	pool.HandlePlayerLanding(client)
 
 	rollData := DiceRollData{
@@ -411,6 +422,7 @@ func (pool *Pool) HandlePlayerLanding(client *Client) {
 		client.Player.Money -= t.Price
 	case "goToJail":
 		client.Player.Position = 10
+		client.Player.InJail = true
 	case "property", "airport", "utility":
 		pool.handleProperty(client, &tiles[client.Player.Position])
 	}
