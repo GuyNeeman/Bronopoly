@@ -108,6 +108,10 @@ func (pool *Pool) handleAction(a action) {
 		pool.handleBid(a.client, a.in.Amount)
 	case ActionPayForPrison:
 		pool.PayForPrison(a.client)
+	case ActionBuyProperty:
+		if p := pool.playerOf(a.client); p != nil {
+			pool.buyProperty(p, pool.tileOf(p))
+		}
 	}
 }
 

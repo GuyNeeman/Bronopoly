@@ -74,6 +74,12 @@ func (pool *Pool) playerOf(client *Client) *Player {
 	return p
 }
 
+// tileOf returns the tile the player is standing on. It is a pointer into this
+// room's board, so changes (like setting OwnerID) are saved.
+func (pool *Pool) tileOf(player *Player) *tile {
+	return &pool.GameState.Tiles[player.Position]
+}
+
 func (pool *Pool) currentPlayer() *Player {
 	return pool.GameState.Players[pool.GameState.CurrentTurn]
 }
@@ -199,7 +205,11 @@ func (pool *Pool) HandlePlayerLanding(player *Player) {
 
 func (pool *Pool) handleProperty(player *Player, t *tile) {
 	if t.OwnerID == nil {
-		pool.buyProperty(player, t)
+		//Ask Player if they want to buy the property
+		if c := pool.clientOf(player.ID); c != nil {
+			c.send(Message{Type: MsgBuyProperty, Body: t.Name})
+			pool.GameState.Phase = "decide"
+		}
 		return
 	}
 	// Rent is only owed on someone else's property, and only once the tile has a rent value.
@@ -209,6 +219,7 @@ func (pool *Pool) handleProperty(player *Player, t *tile) {
 }
 
 func (pool *Pool) buyProperty(player *Player, t *tile) {
+
 	if player.Money < t.Price {
 		return
 	}
@@ -233,4 +244,18 @@ func (pool *Pool) PayForPrison(client *Client) {
 		player.InJail = false
 		player.RoundsInJail = 0
 	}
+}
+
+// ---------------------------------------------------------------------------
+// ClientOf
+// ---------------------------------------------------------------------------
+
+// clientOf returns the connection of the player with this ID, or nil if they are offline.
+func (pool *Pool) clientOf(playerID string) *Client {
+	for c := range pool.Clients {
+		if c.ID == playerID {
+			return c
+		}
+	}
+	return nil
 }
