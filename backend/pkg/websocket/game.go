@@ -1,6 +1,9 @@
 package websocket
 
 // Game rules: starting a game, rolling dice, landing on tiles, buying, prison.
+//
+// All game data lives in Pool.GameState. A Client is only a connection: to
+// change a player's money or position, look the player up with pool.player().
 
 import (
 	"fmt"
@@ -27,9 +30,12 @@ type GameSettings struct {
 	EvenBuildings  bool `json:"evenBuildings"`
 }
 
+// GameState is the single source of truth for a running game.
 type GameState struct {
-	Players     []Player `json:"players"`
-	CurrentTurn int      `json:"currentTurn"`
+	Players     []*Player `json:"players"` // in turn order
+	CurrentTurn int       `json:"currentTurn"`
+	Phase       string    `json:"phase"`
+	Tiles       []tile    `json:"tiles"` // this room's own board
 }
 
 type GameResults struct {
@@ -38,9 +44,38 @@ type GameResults struct {
 
 func NewGameState() GameState {
 	return GameState{
-		Players:     []Player{},
+		Players:     []*Player{},
 		CurrentTurn: 0,
+		Tiles:       newTiles(),
 	}
+}
+
+// ---------------------------------------------------------------------------
+// Looking up players
+// ---------------------------------------------------------------------------
+
+// player returns the player with this ID, or nil if they are not in the game.
+func (pool *Pool) player(id string) *Player {
+	for _, p := range pool.GameState.Players {
+		if p.ID == id {
+			return p
+		}
+	}
+	return nil
+}
+
+// playerOf returns the client's player, or sends an error and returns nil
+// if the client is not part of the game.
+func (pool *Pool) playerOf(client *Client) *Player {
+	p := pool.player(client.ID)
+	if p == nil {
+		client.send(Message{Type: MsgError, Body: "Du spielst in diesem Spiel nicht mit"})
+	}
+	return p
+}
+
+func (pool *Pool) currentPlayer() *Player {
+	return pool.GameState.Players[pool.GameState.CurrentTurn]
 }
 
 // ---------------------------------------------------------------------------
@@ -49,13 +84,14 @@ func NewGameState() GameState {
 
 func (pool *Pool) CreateGame() {
 	settings := pool.GameSettings
-	pool.GameState = NewGameState()
-	pool.Tiles = newTiles() // a new game starts with nothing owned
+	pool.GameState = NewGameState() // also gives a fresh board with nothing owned
 
 	for client := range pool.Clients {
-		client.Player.Money = settings.StartingMoney
-		client.Player.Position = 0
-		pool.GameState.Players = append(pool.GameState.Players, client.Player)
+		pool.GameState.Players = append(pool.GameState.Players, &Player{
+			ID:    client.ID,
+			Name:  client.Name,
+			Money: settings.StartingMoney,
+		})
 	}
 
 	updateMsg := Message{
@@ -72,22 +108,24 @@ func (pool *Pool) CreateGame() {
 
 func (pool *Pool) HandleRollDice(client *Client) {
 	// Make sure client cannot roll before the game starts
-	if len(pool.GameState.Players) == 0 || pool.GameState.CurrentTurn >= len(pool.GameState.Players) {
+	if len(pool.GameState.Players) == 0 {
 		client.send(Message{Type: MsgError, Body: "Das Spiel hat noch nicht begonnen"})
 		return
 	}
 
-	player := client.Player
-	idx := pool.GameState.CurrentTurn
-	oldPosition := client.Player.Position
-
-	if player.ID != pool.GameState.Players[idx].ID {
+	player := pool.playerOf(client)
+	if player == nil {
+		return
+	}
+	if player != pool.currentPlayer() {
 		client.send(Message{Type: MsgChat, Body: "Du bist nicht dran!"})
 		return
 	}
 
 	// Whatever happens below (including staying in jail), the next player is up afterwards.
 	defer pool.nextTurn()
+
+	oldPosition := player.Position
 
 	r := rand.New(rand.NewSource(time.Now().UnixNano()))
 
@@ -96,33 +134,33 @@ func (pool *Pool) HandleRollDice(client *Client) {
 	totalStep := dice1 + dice2
 
 	//Make sure Player is still in jail and handle all that :)
-	if client.Player.InJail {
+	if player.InJail {
 		if dice1 == dice2 {
-			client.Player.InJail = false
+			player.InJail = false
 		} else {
-			client.Player.RoundsInJail++
+			player.RoundsInJail++
 			return
 		}
 	} else {
-		client.Player.Position = (client.Player.Position + totalStep) % 40
+		player.Position = (player.Position + totalStep) % 40
 	}
 
 	// Give Player their money if they pass the start field (double for landing on it).
-	if client.Player.Position == 0 {
-		client.Player.Money += pool.GameSettings.RoundMoney * 2
-	} else if client.Player.Position < oldPosition {
-		client.Player.Money += pool.GameSettings.RoundMoney
+	if player.Position == 0 {
+		player.Money += pool.GameSettings.RoundMoney * 2
+	} else if player.Position < oldPosition {
+		player.Money += pool.GameSettings.RoundMoney
 	}
 
-	pool.HandlePlayerLanding(client)
+	pool.HandlePlayerLanding(player)
 
 	rollData := DiceRollData{
-		PlayerName: client.Player.Name,
+		PlayerName: player.Name,
 		Dice1:      dice1,
 		Dice2:      dice2,
 		Total:      totalStep,
-		Position:   client.Player.Position,
-		Money:      client.Player.Money,
+		Position:   player.Position,
+		Money:      player.Money,
 	}
 
 	updateMsg := Message{
@@ -141,45 +179,43 @@ func (pool *Pool) nextTurn() {
 }
 
 // HandlePlayerLanding applies the effect of the tile the player is standing on.
-func (pool *Pool) HandlePlayerLanding(client *Client) {
-
-	t := pool.Tiles[client.Player.Position]
+func (pool *Pool) HandlePlayerLanding(player *Player) {
+	t := &pool.GameState.Tiles[player.Position]
 
 	switch t.Type {
 	case "tax":
-		client.Player.Money -= t.Price
+		player.Money -= t.Price
 	case "goToJail":
-		client.Player.Position = 10
-		client.Player.InJail = true
+		player.Position = 10
+		player.InJail = true
 	case "property", "airport", "utility":
-		pool.handleProperty(client, &pool.Tiles[client.Player.Position])
+		pool.handleProperty(player, t)
 	}
-
 }
 
 // ---------------------------------------------------------------------------
 // Properties
 // ---------------------------------------------------------------------------
 
-func (pool *Pool) handleProperty(client *Client, t *tile) {
+func (pool *Pool) handleProperty(player *Player, t *tile) {
 	if t.OwnerID == nil {
-		pool.buyProperty(client, t)
+		pool.buyProperty(player, t)
 		return
 	}
 	// Rent is only owed on someone else's property, and only once the tile has a rent value.
-	if *t.OwnerID != client.Player.ID && t.Tax != nil {
-		client.Player.Money -= *t.Tax
+	if *t.OwnerID != player.ID && t.Tax != nil {
+		player.Money -= *t.Tax
 	}
 }
 
-func (pool *Pool) buyProperty(client *Client, t *tile) {
-	if client.Player.Money < t.Price {
+func (pool *Pool) buyProperty(player *Player, t *tile) {
+	if player.Money < t.Price {
 		return
 	}
 
-	client.Player.Money -= t.Price
+	player.Money -= t.Price
 
-	ownerID := client.Player.ID
+	ownerID := player.ID
 	t.OwnerID = &ownerID
 }
 
@@ -188,9 +224,13 @@ func (pool *Pool) buyProperty(client *Client, t *tile) {
 // ---------------------------------------------------------------------------
 
 func (pool *Pool) PayForPrison(client *Client) {
-	if client.Player.InJail || client.Player.RoundsInJail == 3 {
-		client.Player.Money -= 150
-		client.Player.InJail = false
-		client.Player.RoundsInJail = 0
+	player := pool.playerOf(client)
+	if player == nil {
+		return
+	}
+	if player.InJail || player.RoundsInJail == 3 {
+		player.Money -= 150
+		player.InJail = false
+		player.RoundsInJail = 0
 	}
 }

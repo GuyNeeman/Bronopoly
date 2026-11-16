@@ -26,7 +26,6 @@ type Pool struct {
 	GameState    GameState
 	GameSettings GameSettings
 	GameResults  GameResults
-	Tiles        []tile   // this room's own board
 	auction      *auction // running auction, or nil
 
 	done chan struct{} // closed when this room's Start() loop stops
@@ -47,7 +46,6 @@ func NewPool() *Pool {
 		GameState:    NewGameState(),
 		GameSettings: GameSettings{},
 		GameResults:  GameResults{},
-		Tiles:        newTiles(),
 		Actions:      make(chan action),
 		done:         make(chan struct{}),
 	}

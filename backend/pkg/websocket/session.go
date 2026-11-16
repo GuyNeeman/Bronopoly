@@ -52,10 +52,10 @@ func (c *Client) login() bool {
 			continue
 		}
 
-		// Not in any pool yet, so no room loop can be reading c.Player.
+		// Not in any pool yet, so no room loop can be reading these fields.
 		c.token = sess.Token
 		c.ID = sess.PlayerID
-		c.Player = Player{ID: sess.PlayerID, Name: sess.Nickname}
+		c.Name = sess.Nickname
 		c.send(Message{Type: MsgWelcome, Body: WelcomeData{
 			PlayerID: sess.PlayerID, Name: sess.Nickname, Token: sess.Token,
 		}})
