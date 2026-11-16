@@ -23,12 +23,13 @@ const (
 )
 
 type Client struct {
-	ID     string
-	Conn   *websocket.Conn
-	Pool   *Pool // the room the client is currently in
-	Player Player
-	Send   chan Message // outgoing messages, drained by writePump
-	token  string
+	ID    string // player ID from the session
+	Name  string
+	Conn  *websocket.Conn
+	Pool  *Pool        // the room the client is currently in
+	Send  chan Message // outgoing messages, drained by writePump
+	token string
+	// Game data (money, position, ...) is not stored here but in Pool.GameState.
 }
 
 func NewClient(conn *websocket.Conn) *Client {
@@ -113,7 +114,7 @@ func (c *Client) Read() {
 			}
 			c.Pool.say(Message{
 				Type: MsgChat,
-				Body: ChatData{From: c.Player.Name, Text: text},
+				Body: ChatData{From: c.Name, Text: text},
 			})
 
 		// Game: handed to the room loop, the only place that changes game state.

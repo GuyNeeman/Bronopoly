@@ -17,7 +17,7 @@ const auctionDuration = 5 * time.Second
 type auction struct {
 	tile          *tile
 	highestBid    int
-	highestBidder *Client
+	highestBidder *Player
 	timer         *time.Timer
 }
 
@@ -27,7 +27,12 @@ func (pool *Pool) startauction(client *Client) {
 		return
 	}
 
-	t := &pool.Tiles[client.Player.Position]
+	player := pool.playerOf(client)
+	if player == nil {
+		return
+	}
+
+	t := &pool.GameState.Tiles[player.Position]
 	if t.OwnerID != nil || t.Price == 0 {
 		client.send(Message{Type: MsgError, Body: "Dieses Feld kann nicht versteigert werden"})
 		return
@@ -43,12 +48,16 @@ func (pool *Pool) handleBid(client *Client, amount int) {
 		client.send(Message{Type: MsgError, Body: "Es läuft keine Auktion"})
 		return
 	}
-	if amount <= a.highestBid || amount > client.Player.Money {
+	player := pool.playerOf(client)
+	if player == nil {
+		return
+	}
+	if amount <= a.highestBid || amount > player.Money {
 		return // too low or can't afford it
 	}
 
 	a.highestBid = amount
-	a.highestBidder = client
+	a.highestBidder = player
 	pool.announceBid()
 	a.timer.Reset(auctionDuration)
 }
@@ -74,13 +83,13 @@ func (pool *Pool) endAuction() {
 		return
 	}
 
-	a.highestBidder.Player.Money -= a.highestBid
-	ownerID := a.highestBidder.Player.ID
+	a.highestBidder.Money -= a.highestBid
+	ownerID := a.highestBidder.ID
 	a.tile.OwnerID = &ownerID
 
 	pool.sendAll(Message{
 		Type: MsgAuction,
-		Body: "Auktion beendet! " + a.highestBidder.Player.Name + " gewinnt für " + fmt.Sprint(a.highestBid),
+		Body: "Auktion beendet! " + a.highestBidder.Name + " gewinnt für " + fmt.Sprint(a.highestBid),
 	})
 }
 

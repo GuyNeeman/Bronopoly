@@ -19,7 +19,8 @@ const (
 	MsgWelcome     = 7  // WelcomeData
 	MsgLoginFailed = 8  // string
 	MsgAuction     = 9  // auction started / new highest bid / auction ended
-	MsgBid         = 10 // (not sent yet)
+	MsgBid         = 10 //
+	MsgBuyProperty = 11 //
 )
 
 // Message is the envelope for everything the server sends.
@@ -73,6 +74,7 @@ const (
 	ActionAuction      = "AUCTION"
 	ActionBid          = "BID"
 	ActionPayForPrison = "PAYFORPRISON"
+	ActionBuyProperty  = "BUY_PROPERTY"
 )
 
 // IncomingAction is every message a client can send. Which fields are set depends on Action.
