@@ -71,10 +71,10 @@ const (
 	// Game
 	ActionStartGame    = "START_GAME"
 	ActionRollDice     = "ROLL_DICE"
-	ActionAuction      = "AUCTION"
+	ActionBuyProperty  = "BUY_PROPERTY" // answer to MsgBuyProperty: yes
+	ActionDecline      = "DECLINE"      // answer to MsgBuyProperty: no (starts an auction if enabled)
 	ActionBid          = "BID"
 	ActionPayForPrison = "PAYFORPRISON"
-	ActionBuyProperty  = "BUY_PROPERTY"
 )
 
 // IncomingAction is every message a client can send. Which fields are set depends on Action.

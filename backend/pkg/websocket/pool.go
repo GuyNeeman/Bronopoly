@@ -102,16 +102,14 @@ func (pool *Pool) handleAction(a action) {
 		pool.CreateGame()
 	case ActionRollDice:
 		pool.HandleRollDice(a.client)
-	case ActionAuction:
-		pool.startauction(a.client)
+	case ActionBuyProperty:
+		pool.handleBuy(a.client)
+	case ActionDecline:
+		pool.handleDecline(a.client)
 	case ActionBid:
 		pool.handleBid(a.client, a.in.Amount)
 	case ActionPayForPrison:
 		pool.PayForPrison(a.client)
-	case ActionBuyProperty:
-		if p := pool.playerOf(a.client); p != nil {
-			pool.buyProperty(p, pool.tileOf(p))
-		}
 	}
 }
 

@@ -21,23 +21,10 @@ type auction struct {
 	timer         *time.Timer
 }
 
-func (pool *Pool) startauction(client *Client) {
-	if pool.auction != nil {
-		client.send(Message{Type: MsgError, Body: "Es läuft bereits eine Auktion"})
-		return
-	}
-
-	player := pool.playerOf(client)
-	if player == nil {
-		return
-	}
-
-	t := &pool.GameState.Tiles[player.Position]
-	if t.OwnerID != nil || t.Price == 0 {
-		client.send(Message{Type: MsgError, Body: "Dieses Feld kann nicht versteigert werden"})
-		return
-	}
-
+// startAuction auctions t. It is started by DECLINE, so the phase is already
+// "decide" and the tile is free; the turn ends when the auction does.
+func (pool *Pool) startAuction(t *tile) {
+	pool.GameState.Phase = PhaseAuction
 	pool.auction = &auction{tile: t, timer: time.NewTimer(auctionDuration)}
 	pool.announceBid()
 }
@@ -74,6 +61,7 @@ func (pool *Pool) auctionTimeout() <-chan time.Time {
 func (pool *Pool) endAuction() {
 	a := pool.auction
 	pool.auction = nil
+	pool.nextTurn() // the auction was the last step of this turn, with or without bids
 
 	if a.highestBidder == nil {
 		pool.sendAll(Message{

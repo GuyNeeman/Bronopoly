@@ -91,6 +91,7 @@ func (pool *Pool) currentPlayer() *Player {
 func (pool *Pool) CreateGame() {
 	settings := pool.GameSettings
 	pool.GameState = NewGameState() // also gives a fresh board with nothing owned
+	pool.GameState.Phase = PhaseRoll
 
 	for client := range pool.Clients {
 		pool.GameState.Players = append(pool.GameState.Players, &Player{
@@ -112,24 +113,52 @@ func (pool *Pool) CreateGame() {
 // Turn
 // ---------------------------------------------------------------------------
 
-func (pool *Pool) HandleRollDice(client *Client) {
-	// Make sure client cannot roll before the game starts
+// What the game is waiting for (GameState.Phase).
+//
+//	roll    -> the current player may roll (and pay for prison)
+//	decide  -> they landed on a free property: BUY_PROPERTY or DECLINE
+//	auction -> the property is being auctioned; the turn ends when it's over
+const (
+	PhaseRoll    = "roll"
+	PhaseDecide  = "decide"
+	PhaseAuction = "auction"
+)
+
+// requireTurn returns the client's player if it's their turn and the game is in
+// the given phase. Otherwise it sends an error and returns nil.
+func (pool *Pool) requireTurn(client *Client, phase string) *Player {
 	if len(pool.GameState.Players) == 0 {
 		client.send(Message{Type: MsgError, Body: "Das Spiel hat noch nicht begonnen"})
-		return
+		return nil
 	}
-
 	player := pool.playerOf(client)
+	if player == nil {
+		return nil
+	}
+	if player != pool.currentPlayer() {
+		client.send(Message{Type: MsgError, Body: "Du bist nicht dran!"})
+		return nil
+	}
+	if pool.GameState.Phase != phase {
+		client.send(Message{Type: MsgError, Body: "Das geht gerade nicht"})
+		return nil
+	}
+	return player
+}
+
+func (pool *Pool) HandleRollDice(client *Client) {
+	player := pool.requireTurn(client, PhaseRoll)
 	if player == nil {
 		return
 	}
-	if player != pool.currentPlayer() {
-		client.send(Message{Type: MsgChat, Body: "Du bist nicht dran!"})
-		return
-	}
 
-	// Whatever happens below (including staying in jail), the next player is up afterwards.
-	defer pool.nextTurn()
+	// The turn ends after the roll, unless the player now has to decide
+	// whether to buy (then BUY_PROPERTY / DECLINE ends it).
+	defer func() {
+		if pool.GameState.Phase == PhaseRoll {
+			pool.nextTurn()
+		}
+	}()
 
 	oldPosition := player.Position
 
@@ -174,14 +203,21 @@ func (pool *Pool) HandleRollDice(client *Client) {
 		Body: rollData,
 	}
 
+	if pool.GameState.Phase != "decide" {
+		pool.nextTurn()
+		pool.GameState.Phase = "ready"
+	}
+
 	// sendAll, not pool.Broadcast: we are already inside the room loop, and
 	// sending to Broadcast here would wait forever for ourselves.
 	pool.sendAll(updateMsg)
 }
 
-// nextTurn passes the turn to the next player.
+// nextTurn passes the turn to the next player, who starts by rolling.
+// Every turn ends with exactly one call to it.
 func (pool *Pool) nextTurn() {
 	pool.GameState.CurrentTurn = (pool.GameState.CurrentTurn + 1) % len(pool.GameState.Players)
+	pool.GameState.Phase = PhaseRoll
 }
 
 // HandlePlayerLanding applies the effect of the tile the player is standing on.
@@ -206,9 +242,10 @@ func (pool *Pool) HandlePlayerLanding(player *Player) {
 func (pool *Pool) handleProperty(player *Player, t *tile) {
 	if t.OwnerID == nil {
 		//Ask Player if they want to buy the property
+		// If they're offline nobody can answer, so the turn just goes on.
 		if c := pool.clientOf(player.ID); c != nil {
 			c.send(Message{Type: MsgBuyProperty, Body: t.Name})
-			pool.GameState.Phase = "decide"
+			pool.GameState.Phase = PhaseDecide
 		}
 		return
 	}
@@ -219,16 +256,44 @@ func (pool *Pool) handleProperty(player *Player, t *tile) {
 	}
 }
 
-func (pool *Pool) buyProperty(player *Player, t *tile) {
-
-	if player.Money < t.Price {
+// handleBuy is the answer "yes" to MsgBuyProperty.
+func (pool *Pool) handleBuy(client *Client) {
+	player := pool.requireTurn(client, PhaseDecide)
+	if player == nil {
 		return
+	}
+	if !pool.buyProperty(player, pool.tileOf(player)) {
+		// Stay in "decide": the player can still DECLINE.
+		client.send(Message{Type: MsgError, Body: "Nicht genug Geld"})
+		return
+	}
+	pool.nextTurn()
+}
+
+// handleDecline is the answer "no" to MsgBuyProperty.
+func (pool *Pool) handleDecline(client *Client) {
+	player := pool.requireTurn(client, PhaseDecide)
+	if player == nil {
+		return
+	}
+	if pool.GameSettings.Auction {
+		pool.startAuction(pool.tileOf(player)) // endAuction ends the turn
+		return
+	}
+	pool.nextTurn()
+}
+
+// buyProperty buys t for the player. Returns false if they can't afford it.
+func (pool *Pool) buyProperty(player *Player, t *tile) bool {
+	if player.Money < t.Price {
+		return false
 	}
 
 	player.Money -= t.Price
 
 	ownerID := player.ID
 	t.OwnerID = &ownerID
+	return true
 }
 
 func (pool *Pool) handleTax(t *tile) {
@@ -261,8 +326,9 @@ func (pool *Pool) handleTax(t *tile) {
 // Prison
 // ---------------------------------------------------------------------------
 
+// PayForPrison is only allowed on your own turn, before rolling.
 func (pool *Pool) PayForPrison(client *Client) {
-	player := pool.playerOf(client)
+	player := pool.requireTurn(client, PhaseRoll)
 	if player == nil {
 		return
 	}
