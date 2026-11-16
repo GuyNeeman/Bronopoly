@@ -214,6 +214,7 @@ func (pool *Pool) handleProperty(player *Player, t *tile) {
 	}
 	// Rent is only owed on someone else's property, and only once the tile has a rent value.
 	if *t.OwnerID != player.ID && t.Tax != nil {
+		pool.handleTax(t)
 		player.Money -= *t.Tax
 	}
 }
@@ -228,6 +229,32 @@ func (pool *Pool) buyProperty(player *Player, t *tile) {
 
 	ownerID := player.ID
 	t.OwnerID = &ownerID
+}
+
+func (pool *Pool) handleTax(t *tile) {
+	if t.House == nil || t.Tax == nil {
+		return
+	}
+
+	switch *t.House {
+	case 1:
+		newTax := int(float64(*t.BaseTax) * 1.5)
+		t.Tax = &newTax
+	case 2:
+		newTax := int(float64(*t.BaseTax) * 2.5)
+		t.Tax = &newTax
+	case 3:
+		newTax := int(float64(*t.BaseTax) * 4.0)
+		t.Tax = &newTax
+	case 4:
+		newTax := int(float64(*t.BaseTax) * 6.0)
+		t.Tax = &newTax
+	case 5:
+		newTax := int(float64(*t.BaseTax) * 10.0)
+		t.Tax = &newTax
+	default:
+		t.Tax = t.BaseTax
+	}
 }
 
 // ---------------------------------------------------------------------------
