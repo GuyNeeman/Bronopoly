@@ -11,21 +11,22 @@ const (
 	MsgRoomInfo    = 6 // room info (used from step 10)
 	MsgWelcome     = 7 // WelcomeData
 	MsgLoginFailed = 8 // string
-	MsgAuction = 9 // Announce Auction
-	MsgBid     = 10
+	MsgAuction     = 9 // Announce Auction
+	MsgBid         = 10
 )
 
 // Actions sent from client to server (IncomingAction.Action).
 const (
-	ActionCreateRoom = "CREATE_ROOM"
-	ActionJoinRoom   = "JOIN_ROOM"
-	ActionStartGame  = "START_GAME"
-	ActionRollDice   = "ROLL_DICE"
-	ActionChat       = "CHAT"
-	ActionAuction    = "AUCTION"
-	ActionBid        = "BID"
-	ActionLogin      = "LOGIN"
-	ActionResume     = "RESUME"
+	ActionCreateRoom   = "CREATE_ROOM"
+	ActionJoinRoom     = "JOIN_ROOM"
+	ActionStartGame    = "START_GAME"
+	ActionRollDice     = "ROLL_DICE"
+	ActionChat         = "CHAT"
+	ActionAuction      = "AUCTION"
+	ActionBid          = "BID"
+	ActionLogin        = "LOGIN"
+	ActionResume       = "RESUME"
+	ActionPayForPrison = "PAYFORPRISON"
 )
 
 const maxChatLength = 300

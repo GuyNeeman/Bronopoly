@@ -261,6 +261,8 @@ func (c *Client) Read() {
 			})
 		case ActionAuction:
 			c.Pool.startauction()
+		case ActionPayForPrison:
+			c.Pool.PayForPrison(c)
 		default:
 			fmt.Println("Unknown action:", incoming.Action)
 		}

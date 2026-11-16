@@ -429,8 +429,12 @@ func (pool *Pool) HandlePlayerLanding(client *Client) {
 
 }
 
-func (pool *Pool) StartGame() {
-
+func (pool *Pool) PayForPrison(client *Client) {
+	if client.Player.InJail || client.Player.RoundsInJail == 3 {
+		client.Player.Money -= 150
+		client.Player.InJail = false
+		client.Player.RoundsInJail = 0
+	}
 }
 
 func (pool *Pool) sendAll(msg Message) {
