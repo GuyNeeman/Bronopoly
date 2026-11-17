@@ -249,22 +249,21 @@ func (pool *Pool) handleProperty(player *Player, t *tile) {
 		}
 		return
 	}
-	if pool.GameSettings.NoRentInPrison {
+	// No rent on your own property, or if the tile has no rent value yet.
+	if *t.OwnerID == player.ID || t.Tax == nil {
 		return
 	}
-	// Rent is only owed on someone else's property, and only once the tile has a rent value.
-	if *t.OwnerID != player.ID && t.Tax != nil {
-		pool.handleTax(t)
-		player.Money -= *t.Tax
 
-		for _, p := range pool.GameState.Players {
-			if p.ID == *t.OwnerID {
-				p.Money += *t.Tax
-				break
-			}
-		}
+	owner := pool.player(*t.OwnerID)
 
+	// With this setting, an owner in prison gets no rent.
+	if pool.GameSettings.NoRentInPrison && owner.InJail {
+		return
 	}
+
+	pool.handleTax(t)
+	player.Money -= *t.Tax
+	owner.Money += *t.Tax
 }
 
 // handleBuy is the answer "yes" to MsgBuyProperty.
