@@ -259,23 +259,70 @@ func (pool *Pool) executeCard(client *Client, card Card, player *Player, t *tile
 		}
 
 	case "jail":
-		player.Position = 9
+		player.Position = 10
 
 	case "getOutOfJail":
-		pool.handleGetOutOfJail(client)
+		player.GetOutOfJailCards++
 
 	case "payEachPlayer":
-		return
+		for _, p := range pool.GameState.Players {
+			if p.ID != player.ID {
+				p.Money += card.Amount
+				player.Money -= card.Amount
+			}
+		}
 
 	case "collectEachPlayer":
-		return
+		for _, p := range pool.GameState.Players {
+			if p.ID != player.ID {
+				p.Money -= card.Amount
+				player.Money += card.Amount
+			}
+		}
 
 	case "repairs":
+		houses, hotels := pool.countBuildings(player)
+
+		total := houses*card.HouseCost + hotels*card.HotelCost
+
+		player.Money -= total
 
 	}
 }
-return
 
-func(pool *Pool) handleGetOutOfJail(client *Client) {
+func (pool *Pool) countBuildings(player *Player) (int, int) {
+	houses := 0
+	hotels := 0
 
+	for _, p := range pool.GameState.Tiles {
+		if p.OwnerID == nil || p.House == nil {
+			continue
+		}
+
+		if *p.OwnerID != player.ID {
+			continue
+		}
+
+		if *p.House == 5 {
+			hotels++
+		} else {
+			houses += *p.House
+		}
+	}
+
+	return houses, hotels
+}
+
+func (pool *Pool) handleGetOutOfJail(client *Client, player *Player) {
+
+	if player.GetOutOfJailCards <= 0 {
+		return
+	}
+
+	if player.Position != 10 {
+		return
+	}
+
+	player.GetOutOfJailCards--
+	player.InJail = false
 }
