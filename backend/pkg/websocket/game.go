@@ -242,10 +242,21 @@ func (pool *Pool) handleProperty(player *Player, t *tile) {
 		}
 		return
 	}
+	if pool.GameSettings.NoRentInPrison {
+		return
+	}
 	// Rent is only owed on someone else's property, and only once the tile has a rent value.
 	if *t.OwnerID != player.ID && t.Tax != nil {
 		pool.handleTax(t)
 		player.Money -= *t.Tax
+
+		for _, p := range pool.GameState.Players {
+			if p.ID == *t.OwnerID {
+				p.Money += *t.Tax
+				break
+			}
+		}
+
 	}
 }
 
