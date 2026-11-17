@@ -210,7 +210,13 @@ func (pool *Pool) HandleRollDice(client *Client) {
 // nextTurn passes the turn to the next player, who starts by rolling.
 // Every turn ends with exactly one call to it.
 func (pool *Pool) nextTurn() {
-	pool.GameState.CurrentTurn = (pool.GameState.CurrentTurn + 1) % len(pool.GameState.Players)
+	players := pool.GameState.Players
+	for i := 0; i < len(players); i++ {
+		pool.GameState.CurrentTurn = (pool.GameState.CurrentTurn + 1) % len(players)
+		if !pool.currentPlayer().IsBankrupt {
+			break
+		}
+	}
 	pool.GameState.Phase = PhaseRoll
 }
 
@@ -374,10 +380,18 @@ func (pool *Pool) clientOf(playerID string) *Client {
 
 func (pool *Pool) declareBankruptcy(client *Client) {
 	player := pool.requireTurn(client, PhaseDecide)
-	if player == nil {
-		return
-	}
 	player.IsBankrupt = true
+	player.Money = 0
+
+	// Free their properties and reset them.
+	for i := range pool.GameState.Tiles {
+		t := &pool.GameState.Tiles[i]
+		if t.OwnerID != nil && *t.OwnerID == player.ID {
+			t.OwnerID = nil
+			t.Level = nil
+			t.House = nil
+		}
+	}
 }
 
 func (pool *Pool) handleBankruptcy(client *Client) {
@@ -396,4 +410,12 @@ func (pool *Pool) checkForBankruptcy(client *Client) {
 	if player.Money < 0 {
 		pool.handleBankruptcy(client)
 	}
+}
+
+// ---------------------------------------------------------------------------
+// GameEnd
+// ---------------------------------------------------------------------------
+
+func (pool *Pool) GameEnd() {
+	// Implementation for ending the game
 }
