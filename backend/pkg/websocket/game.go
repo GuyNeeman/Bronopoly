@@ -152,14 +152,6 @@ func (pool *Pool) HandleRollDice(client *Client) {
 		return
 	}
 
-	// The turn ends after the roll, unless the player now has to decide
-	// whether to buy (then BUY_PROPERTY / DECLINE ends it).
-	defer func() {
-		if pool.GameState.Phase == PhaseRoll {
-			pool.nextTurn()
-		}
-	}()
-
 	oldPosition := player.Position
 
 	r := rand.New(rand.NewSource(time.Now().UnixNano()))
@@ -174,6 +166,7 @@ func (pool *Pool) HandleRollDice(client *Client) {
 			player.InJail = false
 		} else {
 			player.RoundsInJail++
+			pool.nextTurn()
 			return
 		}
 	} else {
@@ -203,9 +196,9 @@ func (pool *Pool) HandleRollDice(client *Client) {
 		Body: rollData,
 	}
 
-	if pool.GameState.Phase != "decide" {
+	// End the turn, unless the player still has to decide whether to buy.
+	if pool.GameState.Phase != PhaseDecide {
 		pool.nextTurn()
-		pool.GameState.Phase = "ready"
 	}
 
 	// sendAll, not pool.Broadcast: we are already inside the room loop, and

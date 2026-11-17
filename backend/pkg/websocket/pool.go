@@ -5,6 +5,7 @@ package websocket
 // touches Clients and GameState.
 
 import (
+	"encoding/json"
 	"fmt"
 	"log"
 	"runtime/debug"
@@ -65,10 +66,15 @@ func (pool *Pool) Start() {
 			pool.handleAction(a)
 		case <-pool.auctionTimeout():
 			pool.endAuction()
+			pool.sendState()
 		case client := <-pool.Register:
 			pool.Clients[client] = true
 			fmt.Println("Size of Connection Pool: ", len(pool.Clients))
 			pool.sendAll(Message{Type: MsgChat, Body: "New User Joined..."})
+			// If a game is running, show the new player the board.
+			if pool.gameRunning() {
+				client.send(pool.stateMessage())
+			}
 
 		case client := <-pool.Unregister:
 			delete(pool.Clients, client)
@@ -111,6 +117,27 @@ func (pool *Pool) handleAction(a action) {
 	case ActionPayForPrison:
 		pool.PayForPrison(a.client)
 	}
+
+	// After every action, send everyone the new state.
+	pool.sendState()
+}
+
+func (pool *Pool) gameRunning() bool {
+	return len(pool.GameState.Players) > 0
+}
+
+// sendState sends the game state to everyone in the room.
+func (pool *Pool) sendState() {
+	if pool.gameRunning() {
+		pool.sendAll(pool.stateMessage())
+	}
+}
+
+func (pool *Pool) stateMessage() Message {
+	// Turn the state into JSON now. The message is sent a little later,
+	// and by then the game might have changed again.
+	data, _ := json.Marshal(pool.GameState)
+	return Message{Type: MsgGameState, Body: json.RawMessage(data)}
 }
 
 // sendAll sends msg to everyone in the room. Only call it from the room loop.

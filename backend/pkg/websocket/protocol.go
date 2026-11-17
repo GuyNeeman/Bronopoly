@@ -14,7 +14,7 @@ const (
 	MsgGameEvent   = 2  // DiceRollData, ...
 	MsgRoomCreated = 3  // RoomCreatedData
 	MsgError       = 4  // string
-	MsgGameState   = 5  // GameState (not sent yet)
+	MsgGameState   = 5  // GameState: sent after every game action, auction end, and on join
 	MsgRoomInfo    = 6  // room info (not sent yet)
 	MsgWelcome     = 7  // WelcomeData
 	MsgLoginFailed = 8  // string
