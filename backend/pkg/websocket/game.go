@@ -164,9 +164,17 @@ func (pool *Pool) HandleRollDice(client *Client) {
 	//Make sure Player is still in jail and handle all that :)
 	if player.InJail {
 		if dice1 == dice2 {
+			// Doubles: free, but they stay on the prison tile this turn.
 			player.InJail = false
+			player.RoundsInJail = 0
 		} else {
 			player.RoundsInJail++
+			// After 3 failed rolls they have to pay and are free.
+			if player.RoundsInJail >= 3 {
+				player.Money -= prisonFee
+				player.InJail = false
+				player.RoundsInJail = 0
+			}
 			pool.nextTurn()
 			return
 		}
@@ -230,6 +238,7 @@ func (pool *Pool) HandlePlayerLanding(player *Player) {
 	case "goToJail":
 		player.Position = 10
 		player.InJail = true
+		player.RoundsInJail = 0
 	case "property", "airport", "utility":
 		pool.handleProperty(player, t)
 	}
@@ -357,17 +366,27 @@ func (pool *Pool) handleBuyHouse(player *Player, t *tile) {
 // Prison
 // ---------------------------------------------------------------------------
 
+// What it costs to get out of prison.
+const prisonFee = 150
+
 // PayForPrison is only allowed on your own turn, before rolling.
 func (pool *Pool) PayForPrison(client *Client) {
 	player := pool.requireTurn(client, PhaseRoll)
 	if player == nil {
 		return
 	}
-	if player.InJail || player.RoundsInJail == 3 {
-		player.Money -= 150
-		player.InJail = false
-		player.RoundsInJail = 0
+	if !player.InJail {
+		client.send(Message{Type: MsgError, Body: "Du bist nicht im Gefängnis"})
+		return
 	}
+	if player.Money < prisonFee {
+		// They can still try to roll doubles instead.
+		client.send(Message{Type: MsgError, Body: "Nicht genug Geld"})
+		return
+	}
+	player.Money -= prisonFee
+	player.InJail = false
+	player.RoundsInJail = 0
 }
 
 // ---------------------------------------------------------------------------
