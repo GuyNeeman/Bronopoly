@@ -12,13 +12,14 @@ import (
 )
 
 type Player struct {
-	ID           string `json:"id"`
-	Name         string `json:"name"`
-	Money        int    `json:"money"`
-	Position     int    `json:"position"`
-	InJail       bool   `json:"in_jail"`
-	RoundsInJail int    `json:"rounds_in_jail"`
-	IsBankrupt   bool   `json:"is_bankrupt"`
+	ID                string `json:"id"`
+	Name              string `json:"name"`
+	Money             int    `json:"money"`
+	Position          int    `json:"position"`
+	InJail            bool   `json:"in_jail"`
+	RoundsInJail      int    `json:"rounds_in_jail"`
+	IsBankrupt        bool   `json:"is_bankrupt"`
+	GetOutOfJailCards int    `json:"get_out_of_jail_cards"`
 }
 
 type GameSettings struct {
@@ -360,6 +361,7 @@ func (pool *Pool) handleBuyHouse(player *Player, t *tile) {
 
 	player.Money -= *t.HousePrice
 	*t.House++
+
 }
 
 // ---------------------------------------------------------------------------
