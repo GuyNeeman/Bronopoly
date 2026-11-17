@@ -18,6 +18,7 @@ type Player struct {
 	Position     int    `json:"position"`
 	InJail       bool   `json:"in_jail"`
 	RoundsInJail int    `json:"rounds_in_jail"`
+	IsBankrupt   bool   `json:"is_bankrupt"`
 }
 
 type GameSettings struct {
@@ -365,4 +366,34 @@ func (pool *Pool) clientOf(playerID string) *Client {
 		}
 	}
 	return nil
+}
+
+// ---------------------------------------------------------------------------
+// Bankruptcy
+// ---------------------------------------------------------------------------
+
+func (pool *Pool) declareBankruptcy(client *Client) {
+	player := pool.requireTurn(client, PhaseDecide)
+	if player == nil {
+		return
+	}
+	player.IsBankrupt = true
+}
+
+func (pool *Pool) handleBankruptcy(client *Client) {
+	player := pool.requireTurn(client, PhaseDecide)
+	if player == nil {
+		return
+	}
+	pool.declareBankruptcy(client)
+}
+
+func (pool *Pool) checkForBankruptcy(client *Client) {
+	player := pool.requireTurn(client, PhaseDecide)
+	if player == nil {
+		return
+	}
+	if player.Money < 0 {
+		pool.handleBankruptcy(client)
+	}
 }
