@@ -95,6 +95,7 @@ func (pool *Pool) CreateGame() {
 	settings := pool.GameSettings
 	pool.GameState = NewGameState() // also gives a fresh board with nothing owned
 	pool.GameState.Phase = PhaseRoll
+	pool.GameResults = GameResults{} // forget the winner of the last game
 
 	for client := range pool.Clients {
 		pool.GameState.Players = append(pool.GameState.Players, &Player{
@@ -121,10 +122,12 @@ func (pool *Pool) CreateGame() {
 //	roll    -> the current player may roll (and pay for prison)
 //	decide  -> they landed on a free property: BUY_PROPERTY or DECLINE
 //	auction -> the property is being auctioned; the turn ends when it's over
+//	over    -> the game has ended (see GameEnd)
 const (
 	PhaseRoll    = "roll"
 	PhaseDecide  = "decide"
 	PhaseAuction = "auction"
+	PhaseOver    = "over"
 )
 
 // requireTurn returns the client's player if it's their turn and the game is in
@@ -220,6 +223,11 @@ func (pool *Pool) HandleRollDice(client *Client) {
 // nextTurn passes the turn to the next player, who starts by rolling.
 // Every turn ends with exactly one call to it.
 func (pool *Pool) nextTurn() {
+	// The game is over: there is no next turn.
+	if pool.GameState.Phase == PhaseOver {
+		return
+	}
+
 	players := pool.GameState.Players
 	for i := 0; i < len(players); i++ {
 		pool.GameState.CurrentTurn = (pool.GameState.CurrentTurn + 1) % len(players)
@@ -425,6 +433,8 @@ func (pool *Pool) declareBankruptcy(client *Client) {
 			t.House = nil
 		}
 	}
+
+	pool.GameEnd()
 }
 
 func (pool *Pool) handleBankruptcy(client *Client) {
@@ -449,6 +459,24 @@ func (pool *Pool) checkForBankruptcy(client *Client) {
 // GameEnd
 // ---------------------------------------------------------------------------
 
+// GameEnd ends the game if only one player is not bankrupt. That player wins.
+// Call it every time a player goes bankrupt.
 func (pool *Pool) GameEnd() {
-	// Implementation for ending the game
+	playersLeft := 0
+	var winner *Player
+	for _, p := range pool.GameState.Players {
+		if !p.IsBankrupt {
+			playersLeft++
+			winner = p
+		}
+	}
+	if playersLeft != 1 {
+		return
+	}
+
+	pool.GameResults.Winner = *winner
+	pool.GameState.Phase = PhaseOver // no action needs this phase, so nothing works anymore
+	pool.GameState.Trade = nil
+
+	pool.sendAll(Message{Type: MsgGameOver, Body: pool.GameResults})
 }

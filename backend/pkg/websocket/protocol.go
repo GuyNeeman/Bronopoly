@@ -22,6 +22,7 @@ const (
 	MsgBid         = 10 //
 	MsgBuyProperty = 11 //
 	MsgTrade       = 12 // string: trade accepted / declined
+	MsgGameOver    = 13 // GameResults: the game has ended, with the winner
 )
 
 // Message is the envelope for everything the server sends.
