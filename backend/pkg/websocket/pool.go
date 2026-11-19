@@ -116,6 +116,12 @@ func (pool *Pool) handleAction(a action) {
 		pool.handleBid(a.client, a.in.Amount)
 	case ActionPayForPrison:
 		pool.PayForPrison(a.client)
+	case ActionProposeTrade:
+		pool.handleProposeTrade(a.client, a.in)
+	case ActionAcceptTrade:
+		pool.handleAcceptTrade(a.client)
+	case ActionDeclineTrade:
+		pool.handleDeclineTrade(a.client)
 	}
 
 	// After every action, send everyone the new state.

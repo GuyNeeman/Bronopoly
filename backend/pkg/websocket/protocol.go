@@ -21,6 +21,7 @@ const (
 	MsgAuction     = 9  // auction started / new highest bid / auction ended
 	MsgBid         = 10 //
 	MsgBuyProperty = 11 //
+	MsgTrade       = 12 // string: trade accepted / declined
 )
 
 // Message is the envelope for everything the server sends.
@@ -75,6 +76,11 @@ const (
 	ActionDecline      = "DECLINE"      // answer to MsgBuyProperty: no (starts an auction if enabled)
 	ActionBid          = "BID"
 	ActionPayForPrison = "PAYFORPRISON"
+
+	// Player deals
+	ActionProposeTrade = "PROPOSE_TRADE"
+	ActionAcceptTrade  = "ACCEPT_TRADE"
+	ActionDeclineTrade = "DECLINE_TRADE" // also used to take back your own offer
 )
 
 // IncomingAction is every message a client can send. Which fields are set depends on Action.
@@ -86,6 +92,13 @@ type IncomingAction struct {
 	Text     string       `json:"text"`     // CHAT
 	Token    string       `json:"token"`    // RESUME
 	Amount   int          `json:"amount"`   // BID
+
+	// PROPOSE_TRADE
+	TargetID   string `json:"targetID"`
+	OfferMoney int    `json:"offerMoney"`
+	OfferTiles []int  `json:"offerTiles"`
+	WantMoney  int    `json:"wantMoney"`
+	WantTiles  []int  `json:"wantTiles"`
 }
 
 // ---------------------------------------------------------------------------

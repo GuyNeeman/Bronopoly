@@ -38,6 +38,7 @@ type GameState struct {
 	CurrentTurn int       `json:"currentTurn"`
 	Phase       string    `json:"phase"`
 	Tiles       []tile    `json:"tiles"` // this room's own board
+	Trade       *Trade    `json:"trade"` // open player deal, or null
 }
 
 type GameResults struct {
@@ -227,6 +228,7 @@ func (pool *Pool) nextTurn() {
 		}
 	}
 	pool.GameState.Phase = PhaseRoll
+	pool.GameState.Trade = nil // an open offer ends with the turn
 }
 
 // HandlePlayerLanding applies the effect of the tile the player is standing on.
